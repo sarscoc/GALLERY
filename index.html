@@ -7,130 +7,94 @@
 <title>Image Gallery</title>
 <style>
 :root{
-  --bg:#f6f6f6;
-  --panel:#ffffff;
-  --text:#222;
-  --muted:#8b8b8b;
-  --line:#e7e7e7;
-  --radius:12px;
-  --gap:8px;
+  --bg:#f6f6f6;--panel:#fff;--text:#222;--muted:#8b8b8b;--line:#e7e7e7;
+  --radius:12px;--gap:8px
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
-button,select{font:inherit}
-button{cursor:pointer}
+button,select{font:inherit}button{cursor:pointer}
 body.embed{background:#fff}
 .topbar{
-  position:sticky;top:0;z-index:20;
-  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  padding:10px 12px;
-  background:rgba(246,246,246,.94);
-  backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:10px 12px;background:rgba(246,246,246,.94);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)
 }
 .brand{font-weight:700;letter-spacing:.08em;margin-right:auto}
 .control{
-  height:38px;border:1px solid var(--line);border-radius:10px;
-  background:#fff;color:#222;padding:0 10px;min-width:150px;max-width:220px;
+  height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#222;
+  padding:0 10px;min-width:150px;max-width:220px
 }
-.copy-btn,.clear-btn{
-  height:38px;border:1px solid var(--line);border-radius:10px;
-  background:#fff;color:#222;padding:0 12px;
+.copy-btn,.clear-btn,.reload-btn{
+  height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#222;padding:0 12px
 }
-.copy-btn:active,.clear-btn:active{transform:translateY(1px)}
-.status{
-  padding:32px 16px;text-align:center;color:var(--muted);font-size:14px;
-}
+.copy-btn:active,.clear-btn:active,.reload-btn:active{transform:translateY(1px)}
+.status{padding:32px 16px;text-align:center;color:var(--muted);font-size:14px}
 .gallery{
-  display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:var(--gap);
-  padding:var(--gap);
-  max-width:1500px;
-  margin:0 auto;
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--gap);
+  padding:var(--gap);max-width:1500px;margin:0 auto
 }
 .card{
-  position:relative;aspect-ratio:1/1;border:0;padding:0;
-  overflow:hidden;border-radius:var(--radius);background:#e9e9e9;
+  position:relative;aspect-ratio:1/1;border:0;padding:0;overflow:hidden;
+  border-radius:var(--radius);background:#e9e9e9
 }
 .card img{
   display:block;width:100%;height:100%;object-fit:cover;
-  transition:transform .16s ease,opacity .2s ease;
+  transition:transform .16s ease,opacity .2s ease
 }
 .card:active img{transform:scale(.985)}
 .card img[data-loading="1"]{opacity:0}
-.empty{
-  grid-column:1/-1;padding:64px 16px;text-align:center;color:var(--muted)
-}
-
-/* Viewer */
+.empty{grid-column:1/-1;padding:64px 16px;text-align:center;color:var(--muted)}
 .viewer{
-  position:fixed;inset:0;z-index:9999;
-  background:#070707;color:#fff;
-  display:none;align-items:center;justify-content:center;
-  touch-action:none;overscroll-behavior:none;
+  position:fixed;inset:0;z-index:9999;background:#070707;color:#fff;
+  display:none;align-items:center;justify-content:center;touch-action:none;overscroll-behavior:none
 }
 .viewer.open{display:flex}
-.viewer-stage{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-}
+.viewer-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .viewer-image{
-  display:block;max-width:100vw;max-height:100vh;
-  width:auto;height:auto;object-fit:contain;
-  user-select:none;-webkit-user-drag:none;
-  will-change:transform,opacity;
+  display:block;max-width:100vw;max-height:100vh;width:auto;height:auto;object-fit:contain;
+  user-select:none;-webkit-user-drag:none;will-change:transform,opacity
 }
 .viewer-top{
   position:absolute;top:max(10px,env(safe-area-inset-top));left:12px;right:12px;
-  display:flex;align-items:center;justify-content:space-between;z-index:3;
-  pointer-events:none;
+  display:flex;align-items:center;justify-content:space-between;z-index:3;pointer-events:none
 }
 .viewer-count{
-  font-size:12px;color:rgba(255,255,255,.72);
-  background:rgba(0,0,0,.25);padding:6px 9px;border-radius:999px;
+  font-size:12px;color:rgba(255,255,255,.72);background:rgba(0,0,0,.25);
+  padding:6px 9px;border-radius:999px
 }
 .viewer-close{
   pointer-events:auto;border:0;border-radius:999px;width:38px;height:38px;
-  background:rgba(0,0,0,.34);color:#fff;font-size:23px;line-height:1;
+  background:rgba(0,0,0,.34);color:#fff;font-size:23px;line-height:1
 }
 .viewer-arrow{
-  position:absolute;top:50%;transform:translateY(-50%);
-  z-index:3;border:0;border-radius:999px;width:44px;height:44px;
-  background:rgba(0,0,0,.28);color:#fff;font-size:25px;
+  position:absolute;top:50%;transform:translateY(-50%);z-index:3;border:0;border-radius:999px;
+  width:44px;height:44px;background:rgba(0,0,0,.28);color:#fff;font-size:25px
 }
 .viewer-prev{left:12px}.viewer-next{right:12px}
 .viewer-hint{
   position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));
-  transform:translateX(-50%);z-index:3;
-  font-size:11px;color:rgba(255,255,255,.55);
-  background:rgba(0,0,0,.22);padding:5px 8px;border-radius:999px;
-  white-space:nowrap;
+  transform:translateX(-50%);z-index:3;font-size:11px;color:rgba(255,255,255,.55);
+  background:rgba(0,0,0,.22);padding:5px 8px;border-radius:999px;white-space:nowrap
 }
 .toast{
-  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
-  z-index:10001;background:#222;color:#fff;border-radius:999px;
-  padding:8px 13px;font-size:12px;opacity:0;pointer-events:none;
-  transition:opacity .15s ease;
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;
+  background:#222;color:#fff;border-radius:999px;padding:8px 13px;font-size:12px;
+  opacity:0;pointer-events:none;transition:opacity .15s ease
 }
 .toast.show{opacity:1}
-
 body.embed .topbar{display:none}
 body.embed .gallery{padding:4px;gap:4px;max-width:none}
 body.embed .card{border-radius:8px}
 body.embed .status{padding:20px 12px}
-
 @media(max-width:1100px){.gallery{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:760px){
   :root{--gap:5px;--radius:8px}
-  .topbar{padding:8px}
-  .brand{width:100%;margin-bottom:2px}
+  .topbar{padding:8px}.brand{width:100%;margin-bottom:2px}
   .control{min-width:0;max-width:none;flex:1 1 42%;height:36px}
-  .copy-btn,.clear-btn{height:36px;flex:1 1 auto}
+  .copy-btn,.clear-btn,.reload-btn{height:36px;flex:1 1 auto}
   .gallery{grid-template-columns:repeat(3,minmax(0,1fr))}
   .viewer-arrow{display:none}
 }
-@media(max-width:390px){.gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -143,6 +107,7 @@ body.embed .status{padding:20px 12px}
     <option value="">種別：すべて</option>
   </select>
   <button id="copyEmbedBtn" class="copy-btn" type="button">埋め込みURLをコピー</button>
+  <button id="reloadBtn" class="reload-btn" type="button">更新</button>
   <button id="clearBtn" class="clear-btn" type="button">解除</button>
 </header>
 
@@ -165,329 +130,256 @@ body.embed .status{padding:20px 12px}
 <div id="toast" class="toast"></div>
 
 <script>
-/* =========================================================
-   最初にここだけ変更してください
-   Cloudflare Workerを公開した後、そのURLを入れます。
-   例: https://notion-gallery-api.xxxxx.workers.dev
-   ========================================================= */
-const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
-
-/* true = 画像タップ時、対応ブラウザでは端末のFullscreen APIも試します。
-   Notion埋め込み側がFullscreenを許可していない場合は、自動で画面内全画面表示になります。 */
+/* すでに作成済みのCloudflare Worker */
+const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev";
 const TRY_DEVICE_FULLSCREEN = true;
 
-const qs = new URLSearchParams(location.search);
-const embedMode = qs.get("embed") === "1";
-if (embedMode) document.body.classList.add("embed");
+const initialParams = new URLSearchParams(location.search);
+const embedMode = initialParams.get("embed") === "1";
+if(embedMode) document.body.classList.add("embed");
 
 const els = {
-  gallery: document.getElementById("gallery"),
-  status: document.getElementById("status"),
-  investigator: document.getElementById("investigatorFilter"),
-  type: document.getElementById("typeFilter"),
-  copy: document.getElementById("copyEmbedBtn"),
-  clear: document.getElementById("clearBtn"),
-  viewer: document.getElementById("viewer"),
-  viewerStage: document.getElementById("viewerStage"),
-  viewerImage: document.getElementById("viewerImage"),
-  viewerCount: document.getElementById("viewerCount"),
-  viewerClose: document.getElementById("viewerClose"),
-  viewerPrev: document.getElementById("viewerPrev"),
-  viewerNext: document.getElementById("viewerNext"),
-  toast: document.getElementById("toast")
+  gallery:document.getElementById("gallery"),
+  status:document.getElementById("status"),
+  investigator:document.getElementById("investigatorFilter"),
+  type:document.getElementById("typeFilter"),
+  copy:document.getElementById("copyEmbedBtn"),
+  reload:document.getElementById("reloadBtn"),
+  clear:document.getElementById("clearBtn"),
+  viewer:document.getElementById("viewer"),
+  viewerImage:document.getElementById("viewerImage"),
+  viewerCount:document.getElementById("viewerCount"),
+  viewerClose:document.getElementById("viewerClose"),
+  viewerPrev:document.getElementById("viewerPrev"),
+  viewerNext:document.getElementById("viewerNext"),
+  toast:document.getElementById("toast")
 };
 
-let allItems = [];
-let visibleItems = [];
-let currentIndex = -1;
-let pointerStart = null;
-let pointerLast = null;
-let dragging = false;
+let visibleItems=[];
+let currentIndex=-1;
+let pointerStart=null,pointerLast=null,dragging=false;
+let requestSerial=0;
 
-function normalizeBase(url){
-  return url.replace(/\/+$/,"");
-}
-function workerReady(){
-  return WORKER_URL && !WORKER_URL.includes("YOUR-WORKER");
-}
-function escapeHtml(s){
-  return String(s ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[c]));
-}
+function base(){return WORKER_URL.replace(/\/+$/,"")}
 function showToast(text){
-  els.toast.textContent = text;
-  els.toast.classList.add("show");
-  clearTimeout(showToast.t);
-  showToast.t = setTimeout(()=>els.toast.classList.remove("show"),1600);
-}
-function currentFilters(){
-  return {
-    investigator: els.investigator.value || "",
-    type: els.type.value || ""
-  };
-}
-function updateAddressBar(){
-  const {investigator,type} = currentFilters();
-  const p = new URLSearchParams(location.search);
-  if (investigator) p.set("investigator",investigator); else p.delete("investigator");
-  if (type) p.set("type",type); else p.delete("type");
-  if (embedMode) p.set("embed","1"); else p.delete("embed");
-  const q = p.toString();
-  history.replaceState(null,"",location.pathname + (q ? "?" + q : "") + location.hash);
-}
-function makeEmbedUrl(){
-  const u = new URL(location.href);
-  const {investigator,type} = currentFilters();
-  if (investigator) u.searchParams.set("investigator",investigator); else u.searchParams.delete("investigator");
-  if (type) u.searchParams.set("type",type); else u.searchParams.delete("type");
-  u.searchParams.set("embed","1");
-  return u.toString();
-}
-async function copyText(text){
-  try{
-    await navigator.clipboard.writeText(text);
-  }catch{
-    const ta=document.createElement("textarea");
-    ta.value=text;document.body.appendChild(ta);ta.select();
-    document.execCommand("copy");ta.remove();
-  }
+  els.toast.textContent=text;els.toast.classList.add("show");
+  clearTimeout(showToast.t);showToast.t=setTimeout(()=>els.toast.classList.remove("show"),1600)
 }
 function setStatus(text,isError=false){
-  els.status.hidden=false;
-  els.status.textContent=text;
-  els.status.style.color=isError ? "#b42318" : "";
-  els.gallery.hidden=true;
+  els.status.hidden=false;els.status.textContent=text;els.status.style.color=isError?"#b42318":"";
+  els.gallery.hidden=true
 }
-function fillSelect(select, rows, prefix, selected){
-  while(select.options.length>1) select.remove(1);
+function currentFilters(){
+  return {investigator:els.investigator.value||"",type:els.type.value||""}
+}
+function updateAddressBar(){
+  const {investigator,type}=currentFilters();
+  const p=new URLSearchParams(location.search);
+  investigator?p.set("investigator",investigator):p.delete("investigator");
+  type?p.set("type",type):p.delete("type");
+  embedMode?p.set("embed","1"):p.delete("embed");
+  p.delete("refresh");
+  const q=p.toString();
+  history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)
+}
+function makeEmbedUrl(){
+  const u=new URL(location.href);
+  const {investigator,type}=currentFilters();
+  investigator?u.searchParams.set("investigator",investigator):u.searchParams.delete("investigator");
+  type?u.searchParams.set("type",type):u.searchParams.delete("type");
+  u.searchParams.set("embed","1");u.searchParams.delete("refresh");
+  return u.toString()
+}
+async function copyText(text){
+  try{await navigator.clipboard.writeText(text)}
+  catch{
+    const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);
+    ta.select();document.execCommand("copy");ta.remove()
+  }
+}
+function fillSelect(select,rows,prefix,selected){
+  while(select.options.length>1)select.remove(1);
   for(const row of rows){
     const opt=document.createElement("option");
-    opt.value=row.value;
-    opt.textContent=`${prefix}：${row.label}`;
-    select.appendChild(opt);
+    opt.value=row.value;opt.textContent=`${prefix}：${row.label}`;select.appendChild(opt)
   }
-  select.value=selected || "";
+  select.value=selected||"";
+  if(selected&&select.value!==selected){
+    const o=new Option(`${prefix}：指定中`,selected);select.add(o);select.value=selected
+  }
 }
-function applyFilters({updateUrl=true}={}){
-  const investigator=els.investigator.value;
-  const type=els.type.value;
-
-  visibleItems=allItems.filter(item=>{
-    const invOk=!investigator || item.investigatorIds.includes(investigator);
-    const typeOk=!type || item.types.includes(type);
-    return invOk && typeOk;
+async function apiGet(path,params={},force=false){
+  const u=new URL(base()+path);
+  Object.entries(params).forEach(([k,v])=>{
+    if(v!==""&&v!==null&&v!==undefined)u.searchParams.set(k,String(v))
   });
-
-  if(updateUrl) updateAddressBar();
-  renderGallery();
+  if(force)u.searchParams.set("refresh","1");
+  const res=await fetch(u.toString(),{cache:force?"reload":"default"});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+  return data
 }
-function renderGallery(){
-  els.gallery.innerHTML="";
-  els.status.hidden=true;
-  els.gallery.hidden=false;
 
-  if(!visibleItems.length){
-    els.gallery.innerHTML='<div class="empty">該当する画像がありません。</div>';
-    return;
+/* 通常画面だけフィルター候補を取得。
+   embed=1 ではこの通信そのものをしないので、キャラ埋め込みが軽くなります。 */
+async function loadMeta(){
+  if(embedMode)return;
+  try{
+    const data=await apiGet("/meta");
+    const wantedInv=initialParams.get("investigator")||"";
+    const wantedType=initialParams.get("type")||"";
+    fillSelect(
+      els.investigator,
+      (data.investigators||[]).map(x=>({value:x.id,label:x.name||x.id})),
+      "ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ",wantedInv
+    );
+    fillSelect(
+      els.type,
+      (data.types||[]).map(x=>({value:x,label:x})),
+      "種別",wantedType
+    );
+  }catch(err){
+    console.warn("meta:",err);
   }
+}
 
+async function loadGallery(force=false){
+  const serial=++requestSerial;
+  const {investigator,type}=currentFilters();
+  setStatus("画像を読み込んでいます…");
+  try{
+    const data=await apiGet("/gallery",{investigator,type},force);
+    if(serial!==requestSerial)return;
+    visibleItems=Array.isArray(data.items)?data.items:[];
+    renderGallery();
+    if(data.warnings?.length)console.warn("Gallery warnings:",data.warnings)
+  }catch(err){
+    if(serial!==requestSerial)return;
+    console.error(err);setStatus("読み込みに失敗しました："+err.message,true)
+  }
+}
+
+function renderGallery(){
+  els.gallery.innerHTML="";els.status.hidden=true;els.gallery.hidden=false;
+  if(!visibleItems.length){
+    els.gallery.innerHTML='<div class="empty">該当する画像がありません。</div>';return
+  }
   const frag=document.createDocumentFragment();
   visibleItems.forEach((item,index)=>{
     const btn=document.createElement("button");
-    btn.className="card";
-    btn.type="button";
-    btn.dataset.index=String(index);
-    btn.setAttribute("aria-label",item.title || `画像 ${index+1}`);
-
+    btn.className="card";btn.type="button";btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
     const img=document.createElement("img");
-    img.src=item.url;
-    img.alt=item.title || "";
-    img.loading="lazy";
-    img.decoding="async";
-    img.dataset.loading="1";
+    img.src=item.url;img.alt=item.title||"";img.loading="lazy";img.decoding="async";img.dataset.loading="1";
     img.addEventListener("load",()=>delete img.dataset.loading,{once:true});
     img.addEventListener("error",()=>delete img.dataset.loading,{once:true});
-
-    btn.appendChild(img);
-    btn.addEventListener("click",()=>openViewer(index));
-    frag.appendChild(btn);
+    btn.appendChild(img);btn.addEventListener("click",()=>openViewer(index));frag.appendChild(btn)
   });
-  els.gallery.appendChild(frag);
+  els.gallery.appendChild(frag)
 }
+
 function preloadAround(index){
-  if(!visibleItems.length) return;
-  const indexes=[
-    (index+1)%visibleItems.length,
-    (index-1+visibleItems.length)%visibleItems.length
-  ];
-  indexes.forEach(i=>{
-    const im=new Image();
-    im.src=visibleItems[i].url;
-  });
+  if(!visibleItems.length)return;
+  [(index+1)%visibleItems.length,(index-1+visibleItems.length)%visibleItems.length].forEach(i=>{
+    const im=new Image();im.src=visibleItems[i].url
+  })
 }
 async function openViewer(index){
-  if(index<0 || index>=visibleItems.length) return;
-  currentIndex=index;
-  updateViewerImage();
-  els.viewer.classList.add("open");
-  els.viewer.setAttribute("aria-hidden","false");
-  document.body.style.overflow="hidden";
-
-  if(TRY_DEVICE_FULLSCREEN && document.documentElement.requestFullscreen && !document.fullscreenElement){
-    try{ await document.documentElement.requestFullscreen({navigationUI:"hide"}); }catch{}
+  if(index<0||index>=visibleItems.length)return;
+  currentIndex=index;updateViewerImage();els.viewer.classList.add("open");
+  els.viewer.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
+  if(TRY_DEVICE_FULLSCREEN&&document.documentElement.requestFullscreen&&!document.fullscreenElement){
+    try{await document.documentElement.requestFullscreen({navigationUI:"hide"})}catch{}
   }
 }
 function updateViewerImage(direction=0){
-  if(currentIndex<0 || !visibleItems[currentIndex]) return;
+  if(currentIndex<0||!visibleItems[currentIndex])return;
   const item=visibleItems[currentIndex];
   els.viewerImage.style.transition="none";
-  els.viewerImage.style.transform=direction ? `translateX(${direction>0?20:-20}px)` : "translateX(0)";
-  els.viewerImage.style.opacity=".55";
-  els.viewerImage.src=item.url;
-  els.viewerImage.alt=item.title || "";
+  els.viewerImage.style.transform=direction?`translateX(${direction>0?20:-20}px)`:"translateX(0)";
+  els.viewerImage.style.opacity=".55";els.viewerImage.src=item.url;els.viewerImage.alt=item.title||"";
   els.viewerCount.textContent=`${currentIndex+1} / ${visibleItems.length}`;
   requestAnimationFrame(()=>{
     els.viewerImage.style.transition="transform .16s ease, opacity .16s ease";
-    els.viewerImage.style.transform="translateX(0)";
-    els.viewerImage.style.opacity="1";
+    els.viewerImage.style.transform="translateX(0)";els.viewerImage.style.opacity="1"
   });
-  preloadAround(currentIndex);
+  preloadAround(currentIndex)
 }
 function go(delta){
-  if(!visibleItems.length) return;
-  currentIndex=(currentIndex+delta+visibleItems.length)%visibleItems.length;
-  updateViewerImage(delta);
+  if(!visibleItems.length)return;
+  currentIndex=(currentIndex+delta+visibleItems.length)%visibleItems.length;updateViewerImage(delta)
 }
 async function closeViewer(){
-  els.viewer.classList.remove("open");
-  els.viewer.setAttribute("aria-hidden","true");
-  document.body.style.overflow="";
-  currentIndex=-1;
-  if(document.fullscreenElement){
-    try{await document.exitFullscreen();}catch{}
-  }
+  els.viewer.classList.remove("open");els.viewer.setAttribute("aria-hidden","true");
+  document.body.style.overflow="";currentIndex=-1;
+  if(document.fullscreenElement){try{await document.exitFullscreen()}catch{}}
 }
 function onPointerDown(e){
-  if(!els.viewer.classList.contains("open")) return;
-  dragging=true;
-  pointerStart={x:e.clientX,y:e.clientY};
-  pointerLast={...pointerStart};
+  if(!els.viewer.classList.contains("open"))return;
+  dragging=true;pointerStart={x:e.clientX,y:e.clientY};pointerLast={...pointerStart};
   try{els.viewer.setPointerCapture(e.pointerId)}catch{}
 }
 function onPointerMove(e){
-  if(!dragging || !pointerStart) return;
+  if(!dragging||!pointerStart)return;
   pointerLast={x:e.clientX,y:e.clientY};
-  const dx=pointerLast.x-pointerStart.x;
-  const dy=pointerLast.y-pointerStart.y;
-  let tx=dx, ty=0;
-  if(Math.abs(dy)>Math.abs(dx)){
-    tx=0;ty=Math.max(0,dy);
-  }
+  const dx=pointerLast.x-pointerStart.x,dy=pointerLast.y-pointerStart.y;
+  let tx=dx,ty=0;
+  if(Math.abs(dy)>Math.abs(dx)){tx=0;ty=Math.max(0,dy)}
   els.viewerImage.style.transition="none";
   els.viewerImage.style.transform=`translate3d(${tx}px,${ty}px,0)`;
-  if(ty>0) els.viewerImage.style.opacity=String(Math.max(.35,1-ty/420));
+  if(ty>0)els.viewerImage.style.opacity=String(Math.max(.35,1-ty/420))
 }
-function onPointerUp(){
-  if(!dragging || !pointerStart || !pointerLast) return resetPointer();
-  const dx=pointerLast.x-pointerStart.x;
-  const dy=pointerLast.y-pointerStart.y;
-  const ax=Math.abs(dx), ay=Math.abs(dy);
-  resetImageTransform();
-
-  if(dy>85 && ay>ax*1.15){
-    closeViewer();
-  }else if(ax>55 && ax>ay*1.1){
-    go(dx<0 ? 1 : -1);
-  }
-  resetPointer();
-}
-function resetPointer(){
-  dragging=false;pointerStart=null;pointerLast=null;
-}
+function resetPointer(){dragging=false;pointerStart=null;pointerLast=null}
 function resetImageTransform(){
   els.viewerImage.style.transition="transform .15s ease, opacity .15s ease";
-  els.viewerImage.style.transform="translate3d(0,0,0)";
-  els.viewerImage.style.opacity="1";
+  els.viewerImage.style.transform="translate3d(0,0,0)";els.viewerImage.style.opacity="1"
 }
-async function loadGallery(){
-  if(!workerReady()){
-    setStatus("index.html の WORKER_URL に、公開したCloudflare WorkerのURLを入れてください。",true);
-    return;
-  }
-
-  setStatus("画像を読み込んでいます…");
-  try{
-    const res=await fetch(normalizeBase(WORKER_URL)+"/gallery",{cache:"no-store"});
-    const data=await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
-    allItems=Array.isArray(data.items) ? data.items : [];
-
-    const invRows=(data.investigators||[]).map(x=>({value:x.id,label:x.name || x.id}));
-    const typeRows=(data.types||[]).map(x=>({value:x,label:x}));
-
-    const wantedInv=qs.get("investigator") || "";
-    const wantedType=qs.get("type") || "";
-
-    fillSelect(els.investigator,invRows,"ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ",wantedInv);
-    fillSelect(els.type,typeRows,"種別",wantedType);
-
-    /* URLに存在する値が現在の候補になくても、Relation先名取得に失敗した場合などに
-       絞り込み自体はできるよう一時optionを足します。 */
-    if(wantedInv && els.investigator.value!==wantedInv){
-      const o=new Option("ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ：指定中",wantedInv);
-      els.investigator.add(o);els.investigator.value=wantedInv;
-    }
-    if(wantedType && els.type.value!==wantedType){
-      const o=new Option(`種別：${wantedType}`,wantedType);
-      els.type.add(o);els.type.value=wantedType;
-    }
-
-    applyFilters({updateUrl:false});
-
-    if(data.warnings?.length){
-      console.warn("Gallery warnings:",data.warnings);
-    }
-  }catch(err){
-    console.error(err);
-    setStatus("読み込みに失敗しました：" + err.message,true);
-  }
+function onPointerUp(){
+  if(!dragging||!pointerStart||!pointerLast)return resetPointer();
+  const dx=pointerLast.x-pointerStart.x,dy=pointerLast.y-pointerStart.y;
+  const ax=Math.abs(dx),ay=Math.abs(dy);resetImageTransform();
+  if(dy>85&&ay>ax*1.15)closeViewer();
+  else if(ax>55&&ax>ay*1.1)go(dx<0?1:-1);
+  resetPointer()
 }
 
-els.investigator.addEventListener("change",()=>applyFilters());
-els.type.addEventListener("change",()=>applyFilters());
+els.investigator.addEventListener("change",()=>{updateAddressBar();loadGallery()});
+els.type.addEventListener("change",()=>{updateAddressBar();loadGallery()});
 els.clear.addEventListener("click",()=>{
-  els.investigator.value="";
-  els.type.value="";
-  applyFilters();
+  els.investigator.value="";els.type.value="";updateAddressBar();loadGallery()
+});
+els.reload.addEventListener("click",async()=>{
+  await loadGallery(true);showToast("最新データに更新しました")
 });
 els.copy.addEventListener("click",async()=>{
-  await copyText(makeEmbedUrl());
-  showToast("埋め込みURLをコピーしました");
+  await copyText(makeEmbedUrl());showToast("埋め込みURLをコピーしました")
 });
-
 els.viewerClose.addEventListener("click",closeViewer);
 els.viewerPrev.addEventListener("click",()=>go(-1));
 els.viewerNext.addEventListener("click",()=>go(1));
-
 els.viewer.addEventListener("pointerdown",onPointerDown);
 els.viewer.addEventListener("pointermove",onPointerMove);
 els.viewer.addEventListener("pointerup",onPointerUp);
 els.viewer.addEventListener("pointercancel",()=>{resetImageTransform();resetPointer()});
-
 document.addEventListener("keydown",e=>{
-  if(!els.viewer.classList.contains("open")) return;
-  if(e.key==="ArrowRight") go(1);
-  else if(e.key==="ArrowLeft") go(-1);
-  else if(e.key==="ArrowDown" || e.key==="Escape") closeViewer();
+  if(!els.viewer.classList.contains("open"))return;
+  if(e.key==="ArrowRight")go(1);
+  else if(e.key==="ArrowLeft")go(-1);
+  else if(e.key==="ArrowDown"||e.key==="Escape")closeViewer()
 });
 
-document.addEventListener("fullscreenchange",()=>{
-  /* ブラウザ側UIでFullscreenを抜けても、画像ビューア自体は閉じません。 */
-});
+(async()=>{
+  /* URL指定値を先に入れる。embedではmetaを取らなくてもこの値で直接高速検索できます。 */
+  const wantedInv=initialParams.get("investigator")||"";
+  const wantedType=initialParams.get("type")||"";
+  if(wantedInv){const o=new Option("ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ：指定中",wantedInv);els.investigator.add(o);els.investigator.value=wantedInv}
+  if(wantedType){const o=new Option(`種別：${wantedType}`,wantedType);els.type.add(o);els.type.value=wantedType}
 
-loadGallery();
+  if(embedMode){
+    await loadGallery();
+  }else{
+    await Promise.all([loadMeta(),loadGallery()]);
+  }
+})();
 </script>
 </body>
 </html>
