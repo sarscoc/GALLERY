@@ -295,6 +295,7 @@ button{cursor:pointer}
   align-items:center;
   justify-content:center;
   overflow:hidden;
+  touch-action:none;
 }
 .viewer-image{
   display:block;
@@ -304,12 +305,17 @@ button{cursor:pointer}
   object-fit:contain;
   user-select:none;
   -webkit-user-drag:none;
+  touch-action:none;
   will-change:transform,opacity;
   transform-origin:center center;
-  transition:transform .16s ease,opacity .14s ease;
+  transition:transform .10s ease,opacity .14s ease;
   cursor:zoom-in;
 }
-.viewer-image.zoomed{cursor:zoom-out}
+.viewer-image.zoomed{cursor:grab}
+.viewer-image.panning{
+  cursor:grabbing;
+  transition:none;
+}
 
 /* tag: lazy-loaded when the image viewer opens */
 .viewer-tags{
@@ -500,7 +506,7 @@ body.viewer-active .menu{
     <button id="reloadBtn" class="menu-action" type="button">更新</button>
     <button id="clearBtn" class="menu-action" type="button">絞り込み解除</button>
   </div>
-  <div class="menu-note">ダブルクリック / ダブルタップで元画像まで拡大</div>
+  <div class="menu-note">ダブルクリック / ダブルタップで全画面　全画面ではホイール / ピンチで自由拡大</div>
 </aside>
 
 <main id="gallery" class="gallery"></main>
@@ -518,7 +524,7 @@ body.viewer-active .menu{
     <button id="viewerPrev" class="viewer-arrow viewer-prev" type="button" aria-label="前の画像">‹</button>
     <button id="viewerNext" class="viewer-arrow viewer-next" type="button" aria-label="次の画像">›</button>
     <div id="viewerCount" class="viewer-count"></div>
-    <div class="mobile-hint">← → NEXT　↓ CLOSE　DOUBLE TAP ZOOM</div>
+    <div class="mobile-hint">← → NEXT　↓ CLOSE　PINCH ZOOM</div>
   </div>
 </section>
 
@@ -528,6 +534,8 @@ body.viewer-active .menu{
 const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
 const PAGE_SIZE = 18;
 const ZOOM_SCALE = 2.5;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 12;
 const TRY_DEVICE_FULLSCREEN = true;
 
 const initialParams = new URLSearchParams(location.search);
@@ -566,7 +574,17 @@ let loadingPage=false;
 let requestSerial=0;
 let currentIndex=-1;
 let zoomed=false;
+let zoomScale=1;
+let panX=0,panY=0;
+let pointerPanning=false;
+let pointerStart=null;
+let pointerPanStart=null;
 let touchStart=null,touchLast=null,touchDragging=false;
+let touchPanning=false;
+let touchPanStart=null;
+let pinchActive=false;
+let pinchStartDistance=0;
+let pinchStartScale=1;
 let lastTapTime=0,lastTapX=0,lastTapY=0;
 const tagInfoCache=new Map();
 let tagInfoSerial=0;
@@ -906,43 +924,87 @@ function viewerSource(item){
 function originalSource(item){
   return item?.originalUrl||item?.url||item?.previewUrl||""
 }
+function clampZoom(value){
+  return Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,value))
+}
+function ensureOriginalImage(){
+  const item=loadedItems[currentIndex];
+  if(!item)return;
+  const original=originalSource(item);
+  if(original&&els.viewerImage.src!==original){
+    els.viewerImage.src=original
+  }
+}
+function applyZoomTransform(){
+  zoomed=zoomScale>1.001;
+  els.viewerImage.classList.toggle("zoomed",zoomed);
+  els.viewerImage.style.transformOrigin="center center";
+  els.viewerImage.style.transform=
+    `translate3d(${panX}px,${panY}px,0) scale(${zoomScale})`
+}
 function resetZoom(restorePreview=false){
+  zoomScale=1;
+  panX=0;
+  panY=0;
   zoomed=false;
-  els.viewerImage.classList.remove("zoomed");
+  pointerPanning=false;
+  touchPanning=false;
+  pinchActive=false;
+
+  els.viewerImage.classList.remove("zoomed","panning");
   els.viewerImage.style.transform="translate3d(0,0,0) scale(1)";
   els.viewerImage.style.transformOrigin="center center";
 
-  if(restorePreview&&currentIndex>=0&&loadedItems[currentIndex]){
+  if(
+    restorePreview &&
+    !document.fullscreenElement &&
+    currentIndex>=0 &&
+    loadedItems[currentIndex]
+  ){
     const src=viewerSource(loadedItems[currentIndex]);
     if(src&&els.viewerImage.src!==src)els.viewerImage.src=src
   }
 }
-function toggleZoom(clientX=null,clientY=null){
+function setZoomScale(nextScale,clientX=null,clientY=null){
   if(!els.viewer.classList.contains("open"))return;
 
-  if(zoomed){
-    resetZoom(true);
-    return
+  const oldScale=zoomScale;
+  const next=clampZoom(nextScale);
+
+  if(next>1.001)ensureOriginalImage();
+
+  /* カーソル / ピンチ中心の場所をなるべくその場に保つ */
+  if(
+    clientX!==null &&
+    clientY!==null &&
+    oldScale>0 &&
+    next!==oldScale
+  ){
+    const rect=els.viewerStage.getBoundingClientRect();
+    const cx=rect.left+rect.width/2;
+    const cy=rect.top+rect.height/2;
+    const ratio=next/oldScale;
+
+    panX=(clientX-cx)-((clientX-cx)-panX)*ratio;
+    panY=(clientY-cy)-((clientY-cy)-panY)*ratio
   }
 
-  const item=loadedItems[currentIndex];
-  if(!item)return;
+  zoomScale=next;
 
-  zoomed=true;
-  els.viewerImage.classList.add("zoomed");
-
-  if(clientX!==null&&clientY!==null){
-    const rect=els.viewerImage.getBoundingClientRect();
-    if(rect.width&&rect.height){
-      const px=Math.max(0,Math.min(100,((clientX-rect.left)/rect.width)*100));
-      const py=Math.max(0,Math.min(100,((clientY-rect.top)/rect.height)*100));
-      els.viewerImage.style.transformOrigin=`${px}% ${py}%`
-    }
+  if(zoomScale<=1.001){
+    zoomScale=1;
+    panX=0;
+    panY=0
   }
 
-  const original=originalSource(item);
-  if(original)els.viewerImage.src=original;
-  els.viewerImage.style.transform=`translate3d(0,0,0) scale(${ZOOM_SCALE})`
+  applyZoomTransform()
+}
+function toggleZoom(clientX=null,clientY=null){
+  if(zoomScale>1.001){
+    setZoomScale(1,clientX,clientY)
+  }else{
+    setZoomScale(ZOOM_SCALE,clientX,clientY)
+  }
 }
 async function enterRealFullscreen(){
   if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
@@ -951,6 +1013,8 @@ async function enterRealFullscreen(){
     if(els.viewerFullscreen.requestFullscreen){
       els.viewer.dataset.wasFullscreen="1";
       await els.viewerFullscreen.requestFullscreen({navigationUI:"hide"});
+      ensureOriginalImage();
+      resetZoom(false);
     }
   }catch{
     /* Fullscreen不可なら埋め込み内プレビューのまま。 */
@@ -978,7 +1042,9 @@ function updateViewerImage(){
   clearViewerTags();
 
   els.viewerImage.style.opacity=".45";
-  els.viewerImage.src=viewerSource(item);
+  els.viewerImage.src=document.fullscreenElement
+    ? originalSource(item)
+    : viewerSource(item);
   els.viewerImage.alt=item.title||"";
   els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
 
@@ -1035,6 +1101,62 @@ els.viewerImage.addEventListener("dblclick",async e=>{
   }
 });
 
+
+/* Fullscreen desktop: wheel/trackpad = free zoom, drag = pan */
+els.viewerFullscreen.addEventListener("wheel",e=>{
+  if(document.fullscreenElement!==els.viewerFullscreen)return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const factor=Math.exp(-e.deltaY*.0022);
+  setZoomScale(
+    zoomScale*factor,
+    e.clientX,
+    e.clientY
+  )
+},{passive:false});
+
+els.viewerImage.addEventListener("pointerdown",e=>{
+  if(
+    document.fullscreenElement!==els.viewerFullscreen ||
+    zoomScale<=1.001 ||
+    (e.pointerType!=="mouse"&&e.pointerType!=="pen")
+  )return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  pointerPanning=true;
+  pointerStart={x:e.clientX,y:e.clientY};
+  pointerPanStart={x:panX,y:panY};
+  els.viewerImage.classList.add("panning");
+
+  try{els.viewerImage.setPointerCapture(e.pointerId)}catch{}
+});
+
+els.viewerImage.addEventListener("pointermove",e=>{
+  if(!pointerPanning||!pointerStart||!pointerPanStart)return;
+
+  e.preventDefault();
+  panX=pointerPanStart.x+(e.clientX-pointerStart.x);
+  panY=pointerPanStart.y+(e.clientY-pointerStart.y);
+  applyZoomTransform()
+});
+
+function stopPointerPan(e){
+  if(!pointerPanning)return;
+  pointerPanning=false;
+  pointerStart=null;
+  pointerPanStart=null;
+  els.viewerImage.classList.remove("panning");
+  if(e){
+    try{els.viewerImage.releasePointerCapture(e.pointerId)}catch{}
+  }
+}
+els.viewerImage.addEventListener("pointerup",stopPointerPan);
+els.viewerImage.addEventListener("pointercancel",stopPointerPan);
+
 /* Empty area closes viewer */
 els.viewer.addEventListener("click",e=>{
   if(
@@ -1048,11 +1170,34 @@ els.viewer.addEventListener("click",e=>{
 
 /* Smartphone only: swipe / down-close / double tap */
 els.viewer.addEventListener("touchstart",e=>{
-  if(!coarsePointer()||e.touches.length!==1)return;
+  if(!coarsePointer())return;
+
+  /* Fullscreen中の2本指は自由ピンチズーム */
+  if(
+    document.fullscreenElement===els.viewerFullscreen &&
+    e.touches.length===2
+  ){
+    e.preventDefault();
+
+    const a=e.touches[0],b=e.touches[1];
+    pinchActive=true;
+    touchDragging=false;
+    touchPanning=false;
+    pinchStartDistance=Math.hypot(
+      b.clientX-a.clientX,
+      b.clientY-a.clientY
+    );
+    pinchStartScale=zoomScale;
+    ensureOriginalImage();
+    return
+  }
+
+  if(e.touches.length!==1)return;
   const t=e.touches[0];
 
   const now=Date.now();
-  const nearPreviousTap=Math.hypot(t.clientX-lastTapX,t.clientY-lastTapY)<45;
+  const nearPreviousTap=
+    Math.hypot(t.clientX-lastTapX,t.clientY-lastTapY)<45;
 
   if(now-lastTapTime<320&&nearPreviousTap){
     e.preventDefault();
@@ -1065,6 +1210,7 @@ els.viewer.addEventListener("touchstart",e=>{
 
     lastTapTime=0;
     touchDragging=false;
+    touchPanning=false;
     touchStart=null;
     touchLast=null;
     return
@@ -1074,19 +1220,68 @@ els.viewer.addEventListener("touchstart",e=>{
   lastTapX=t.clientX;
   lastTapY=t.clientY;
 
-  if(zoomed)return;
+  /* 拡大中は1本指で画像を自由に移動 */
+  if(
+    document.fullscreenElement===els.viewerFullscreen &&
+    zoomScale>1.001
+  ){
+    e.preventDefault();
+    touchDragging=true;
+    touchPanning=true;
+    touchStart={x:t.clientX,y:t.clientY};
+    touchLast={...touchStart};
+    touchPanStart={x:panX,y:panY};
+    els.viewerImage.classList.add("panning");
+    return
+  }
 
+  /* 等倍時は従来どおり左右スワイプ / 下で閉じる */
   touchDragging=true;
+  touchPanning=false;
   touchStart={x:t.clientX,y:t.clientY};
   touchLast={...touchStart}
 },{passive:false});
 
 els.viewer.addEventListener("touchmove",e=>{
-  if(!coarsePointer()||!touchDragging||!touchStart||zoomed||e.touches.length!==1)return;
+  if(!coarsePointer())return;
+
+  if(
+    document.fullscreenElement===els.viewerFullscreen &&
+    pinchActive &&
+    e.touches.length===2
+  ){
+    e.preventDefault();
+
+    const a=e.touches[0],b=e.touches[1];
+    const distance=Math.hypot(
+      b.clientX-a.clientX,
+      b.clientY-a.clientY
+    );
+    const midX=(a.clientX+b.clientX)/2;
+    const midY=(a.clientY+b.clientY)/2;
+
+    if(pinchStartDistance>0){
+      setZoomScale(
+        pinchStartScale*(distance/pinchStartDistance),
+        midX,
+        midY
+      )
+    }
+    return
+  }
+
+  if(!touchDragging||!touchStart||e.touches.length!==1)return;
   e.preventDefault();
 
   const t=e.touches[0];
   touchLast={x:t.clientX,y:t.clientY};
+
+  if(touchPanning&&touchPanStart){
+    panX=touchPanStart.x+(touchLast.x-touchStart.x);
+    panY=touchPanStart.y+(touchLast.y-touchStart.y);
+    applyZoomTransform();
+    return
+  }
 
   const dx=touchLast.x-touchStart.x;
   const dy=touchLast.y-touchStart.y;
@@ -1098,24 +1293,61 @@ els.viewer.addEventListener("touchmove",e=>{
   }
 
   els.viewerImage.style.transition="none";
-  els.viewerImage.style.transform=`translate3d(${tx}px,${ty}px,0) scale(1)`;
+  els.viewerImage.style.transform=
+    `translate3d(${tx}px,${ty}px,0) scale(1)`;
 
   if(ty>0){
-    els.viewerImage.style.opacity=String(Math.max(.32,1-ty/380))
+    els.viewerImage.style.opacity=
+      String(Math.max(.32,1-ty/380))
   }
 },{passive:false});
 
-els.viewer.addEventListener("touchend",()=>{
-  if(!coarsePointer()||!touchDragging||!touchStart||!touchLast||zoomed){
-    touchDragging=false;touchStart=null;touchLast=null;return
+els.viewer.addEventListener("touchend",e=>{
+  if(!coarsePointer())return;
+
+  if(pinchActive){
+    if(e.touches.length<2){
+      pinchActive=false;
+      touchDragging=false;
+      touchPanning=false;
+      touchStart=null;
+      touchLast=null;
+      touchPanStart=null;
+      els.viewerImage.classList.remove("panning");
+
+      if(zoomScale<=1.001)setZoomScale(1)
+    }
+    return
+  }
+
+  if(!touchDragging||!touchStart||!touchLast){
+    touchDragging=false;
+    touchPanning=false;
+    touchStart=null;
+    touchLast=null;
+    touchPanStart=null;
+    els.viewerImage.classList.remove("panning");
+    return
+  }
+
+  if(touchPanning){
+    touchDragging=false;
+    touchPanning=false;
+    touchStart=null;
+    touchLast=null;
+    touchPanStart=null;
+    els.viewerImage.classList.remove("panning");
+    return
   }
 
   const dx=touchLast.x-touchStart.x;
   const dy=touchLast.y-touchStart.y;
   const ax=Math.abs(dx),ay=Math.abs(dy);
 
-  els.viewerImage.style.transition="transform .16s ease,opacity .16s ease";
-  els.viewerImage.style.transform="translate3d(0,0,0) scale(1)";
+  els.viewerImage.style.transition=
+    "transform .16s ease,opacity .16s ease";
+  els.viewerImage.style.transform=
+    "translate3d(0,0,0) scale(1)";
   els.viewerImage.style.opacity="1";
 
   if(dy>80&&ay>ax*1.12){
@@ -1124,7 +1356,21 @@ els.viewer.addEventListener("touchend",()=>{
     go(dx<0?1:-1)
   }
 
-  touchDragging=false;touchStart=null;touchLast=null
+  touchDragging=false;
+  touchPanning=false;
+  touchStart=null;
+  touchLast=null;
+  touchPanStart=null
+});
+
+els.viewer.addEventListener("touchcancel",()=>{
+  pinchActive=false;
+  touchDragging=false;
+  touchPanning=false;
+  touchStart=null;
+  touchLast=null;
+  touchPanStart=null;
+  els.viewerImage.classList.remove("panning")
 });
 
 els.menuButton.addEventListener("click",e=>{
