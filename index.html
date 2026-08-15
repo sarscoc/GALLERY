@@ -7,8 +7,8 @@
 <title>Image Gallery</title>
 <style>
 :root{
-  --bg:rgba(8,8,10,.48);
-  --panel:rgba(18,18,21,.74);
+  --bg:#f5f5f5;
+  --panel:rgba(18,18,21,.42);
   --panel2:rgba(255,255,255,.06);
   --text:#f4f4f4;
   --muted:rgba(255,255,255,.58);
@@ -50,7 +50,7 @@ button{cursor:pointer}
   border:0;
   border-radius:var(--card-radius);
   overflow:hidden;
-  background:rgba(255,255,255,.03);
+  background:transparent;
 }
 .card img{
   display:block;
@@ -90,7 +90,7 @@ button{cursor:pointer}
   width:40px;height:40px;
   border:1px solid rgba(255,255,255,.17);
   border-radius:var(--ui-radius);
-  background:rgba(16,16,18,.48);
+  background:rgba(16,16,18,.20);
   color:#fff;
   backdrop-filter:blur(16px);
   -webkit-backdrop-filter:blur(16px);
@@ -112,7 +112,7 @@ button{cursor:pointer}
   background:var(--panel);
   backdrop-filter:blur(22px) saturate(120%);
   -webkit-backdrop-filter:blur(22px) saturate(120%);
-  box-shadow:0 18px 50px rgba(0,0,0,.20);
+  box-shadow:0 14px 36px rgba(0,0,0,.14);
   opacity:0;
   transform:translateY(-5px);
   pointer-events:none;
@@ -173,7 +173,7 @@ button{cursor:pointer}
   display:none;
   align-items:center;
   justify-content:center;
-  background:rgba(0,0,0,.86);
+  background:rgba(0,0,0,.76);
   color:#fff;
   overflow:hidden;
 }
@@ -293,6 +293,27 @@ body.embed .gallery-column{gap:4px}
   .menu-button{top:max(7px,env(safe-area-inset-top));right:7px}
   .menu{right:7px;top:max(53px,calc(env(safe-area-inset-top) + 53px))}
 }
+
+/* Light minimal scrollbar */
+html{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.13) transparent;
+}
+::-webkit-scrollbar{
+  width:7px;
+  height:7px;
+}
+::-webkit-scrollbar-track{
+  background:transparent;
+}
+::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.13);
+  border-radius:0;
+}
+::-webkit-scrollbar-thumb:hover{
+  background:rgba(0,0,0,.20);
+}
+
 </style>
 </head>
 <body>
@@ -625,6 +646,23 @@ function toggleZoom(clientX=null,clientY=null){
 
   els.viewerImage.style.transform=`translate3d(0,0,0) scale(${ZOOM_SCALE})`
 }
+async function enterRealFullscreen(){
+  if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
+
+  try{
+    if(els.viewer.requestFullscreen){
+      await els.viewer.requestFullscreen({navigationUI:"hide"});
+      return;
+    }
+  }catch{}
+
+  try{
+    if(document.documentElement.requestFullscreen){
+      await document.documentElement.requestFullscreen({navigationUI:"hide"});
+    }
+  }catch{}
+}
+
 async function openViewer(index){
   if(index<0||index>=loadedItems.length)return;
 
@@ -636,14 +674,8 @@ async function openViewer(index){
   els.viewer.setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
 
-  if(
-    TRY_DEVICE_FULLSCREEN&&
-    coarsePointer()&&
-    document.documentElement.requestFullscreen&&
-    !document.fullscreenElement
-  ){
-    try{await document.documentElement.requestFullscreen({navigationUI:"hide"})}catch{}
-  }
+  /* PC / スマホどちらでも実際の全画面表示を試す */
+  await enterRealFullscreen();
 }
 function updateViewerImage(){
   if(currentIndex<0||!loadedItems[currentIndex])return;
