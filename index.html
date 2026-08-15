@@ -238,7 +238,24 @@ button{cursor:pointer}
   overflow:hidden;
 }
 .viewer.open{display:flex}
-.viewer::backdrop{background:transparent}
+.viewer-fullscreen{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  background:transparent;
+  overflow:hidden;
+}
+.viewer-fullscreen:fullscreen{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  background:transparent;
+}
+.viewer-fullscreen::backdrop{
+  background:transparent;
+}
 .viewer-stage{
   position:absolute;
   inset:0;
@@ -261,6 +278,47 @@ button{cursor:pointer}
   cursor:zoom-in;
 }
 .viewer-image.zoomed{cursor:zoom-out}
+
+/* tag: lazy-loaded when the image viewer opens */
+.viewer-tags{
+  position:absolute;
+  top:max(14px,env(safe-area-inset-top));
+  left:16px;
+  z-index:6;
+  max-width:min(52vw,620px);
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px 10px;
+  padding:8px 10px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:var(--ui-radius);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  color:#fff;
+  font-size:12px;
+  line-height:1.5;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .14s ease;
+}
+.viewer-tags.show{
+  opacity:1;
+  pointer-events:auto;
+}
+.viewer-tags a{
+  color:#fff;
+  text-decoration:none;
+  border-bottom:1px solid rgba(255,255,255,.38);
+  text-shadow:0 1px 4px rgba(0,0,0,.22);
+}
+.viewer-tags a:hover{
+  border-bottom-color:rgba(255,255,255,.82);
+}
+.viewer-tags .tag-hash{
+  opacity:.58;
+  margin-right:2px;
+}
 .viewer-close{
   position:absolute;
   top:max(14px,env(safe-area-inset-top));
@@ -352,6 +410,14 @@ html{
 @media (hover:none) and (pointer:coarse){
   .viewer{touch-action:none;overscroll-behavior:none}
   .viewer-arrow{display:none}
+  .viewer-tags{
+    top:max(58px,calc(env(safe-area-inset-top) + 58px));
+    left:9px;
+    max-width:calc(100vw - 18px);
+    right:9px;
+    font-size:11px;
+    padding:7px 8px;
+  }
   .viewer-close{
     width:40px;height:40px;
     top:max(9px,env(safe-area-inset-top));
@@ -400,14 +466,17 @@ html{
 <div id="loadMoreSentinel" style="height:1px"></div>
 
 <section id="viewer" class="viewer" aria-hidden="true">
-  <div id="viewerStage" class="viewer-stage">
-    <img id="viewerImage" class="viewer-image" alt="">
+  <div id="viewerFullscreen" class="viewer-fullscreen">
+    <div id="viewerStage" class="viewer-stage">
+      <img id="viewerImage" class="viewer-image" alt="">
+    </div>
+    <div id="viewerTags" class="viewer-tags" aria-label="tag"></div>
+    <button id="viewerClose" class="viewer-close" type="button" aria-label="閉じる">×</button>
+    <button id="viewerPrev" class="viewer-arrow viewer-prev" type="button" aria-label="前の画像">‹</button>
+    <button id="viewerNext" class="viewer-arrow viewer-next" type="button" aria-label="次の画像">›</button>
+    <div id="viewerCount" class="viewer-count"></div>
+    <div class="mobile-hint">← → NEXT　↓ CLOSE　DOUBLE TAP ZOOM</div>
   </div>
-  <button id="viewerClose" class="viewer-close" type="button" aria-label="閉じる">×</button>
-  <button id="viewerPrev" class="viewer-arrow viewer-prev" type="button" aria-label="前の画像">‹</button>
-  <button id="viewerNext" class="viewer-arrow viewer-next" type="button" aria-label="次の画像">›</button>
-  <div id="viewerCount" class="viewer-count"></div>
-  <div class="mobile-hint">← → NEXT　↓ CLOSE　DOUBLE TAP ZOOM</div>
 </section>
 
 <div id="toast" class="toast"></div>
@@ -435,7 +504,9 @@ const els = {
   reload:document.getElementById("reloadBtn"),
   clear:document.getElementById("clearBtn"),
   viewer:document.getElementById("viewer"),
+  viewerFullscreen:document.getElementById("viewerFullscreen"),
   viewerStage:document.getElementById("viewerStage"),
+  viewerTags:document.getElementById("viewerTags"),
   viewerImage:document.getElementById("viewerImage"),
   viewerCount:document.getElementById("viewerCount"),
   viewerClose:document.getElementById("viewerClose"),
@@ -454,6 +525,8 @@ let currentIndex=-1;
 let zoomed=false;
 let touchStart=null,touchLast=null,touchDragging=false;
 let lastTapTime=0,lastTapX=0,lastTapY=0;
+const tagInfoCache=new Map();
+let tagInfoSerial=0;
 
 const coarsePointer=()=>matchMedia("(hover:none) and (pointer:coarse)").matches;
 function base(){return WORKER_URL.replace(/\/+$/,"")}
@@ -672,6 +745,61 @@ async function resetAndLoad(force=false){
   await loadNextPage(force)
 }
 
+function clearViewerTags(){
+  tagInfoSerial++;
+  els.viewerTags.replaceChildren();
+  els.viewerTags.classList.remove("show");
+}
+function renderViewerTags(items){
+  els.viewerTags.replaceChildren();
+
+  for(const item of (items||[])){
+    if(!item?.name||!item?.url)continue;
+
+    const a=document.createElement("a");
+    a.href=item.url;
+    a.target="_blank";
+    a.rel="noopener noreferrer";
+    a.title=item.source||"";
+
+    const hash=document.createElement("span");
+    hash.className="tag-hash";
+    hash.textContent="#";
+
+    a.appendChild(hash);
+    a.appendChild(document.createTextNode(item.name));
+    a.addEventListener("click",e=>e.stopPropagation());
+
+    els.viewerTags.appendChild(a)
+  }
+
+  els.viewerTags.classList.toggle(
+    "show",
+    els.viewerTags.childElementCount>0
+  )
+}
+async function loadViewerTags(pageId){
+  const serial=++tagInfoSerial;
+  els.viewerTags.replaceChildren();
+  els.viewerTags.classList.remove("show");
+
+  if(!pageId)return;
+
+  try{
+    let data=tagInfoCache.get(pageId);
+
+    if(!data){
+      data=await apiGet("/tag-info",{page_id:pageId});
+      tagInfoCache.set(pageId,data)
+    }
+
+    if(serial!==tagInfoSerial)return;
+    renderViewerTags(data.items||[])
+  }catch(err){
+    console.warn("tag-info:",err)
+  }
+}
+
 function viewerSource(item){
   return item?.previewUrl||item?.url||item?.originalUrl||""
 }
@@ -719,15 +847,14 @@ function toggleZoom(clientX=null,clientY=null){
 async function enterRealFullscreen(){
   if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
 
-  /* 画像ビューアだけをFullscreenにする。
-     ページ全体(documentElement)は絶対にFullscreenにしない。 */
+  /* 専用レイヤーだけをFullscreen化。
+     ギャラリー本体もviewer背景もFullscreen要素に含めない。 */
   try{
-    if(els.viewer.requestFullscreen){
-      await els.viewer.requestFullscreen({navigationUI:"hide"});
+    if(els.viewerFullscreen.requestFullscreen){
+      await els.viewerFullscreen.requestFullscreen({navigationUI:"hide"});
     }
   }catch{
-    /* Notion埋め込み等でFullscreenが許可されない場合は、
-       今の固定オーバーレイ表示のまま使う。 */
+    /* Notion埋め込み等でFullscreen不可なら固定オーバーレイのまま。 */
   }
 }
 async function openViewer(index){
@@ -749,12 +876,15 @@ function updateViewerImage(){
   resetZoom();
   const item=loadedItems[currentIndex];
 
+  clearViewerTags();
+
   els.viewerImage.style.opacity=".45";
   els.viewerImage.src=viewerSource(item);
   els.viewerImage.alt=item.title||"";
   els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
 
   requestAnimationFrame(()=>els.viewerImage.style.opacity="1");
+  loadViewerTags(item.pageId);
 
   if(hasMore&&currentIndex>=loadedItems.length-4){
     loadNextPage()
@@ -783,6 +913,7 @@ async function closeViewer(){
   document.body.style.overflow="";
   currentIndex=-1;
   resetZoom();
+  clearViewerTags();
 
   if(document.fullscreenElement){
     try{await document.exitFullscreen()}catch{}
@@ -799,7 +930,11 @@ els.viewerImage.addEventListener("dblclick",e=>{
 
 /* Empty area closes viewer */
 els.viewer.addEventListener("click",e=>{
-  if(e.target===els.viewer||e.target===els.viewerStage)closeViewer()
+  if(
+    e.target===els.viewer||
+    e.target===els.viewerFullscreen||
+    e.target===els.viewerStage
+  )closeViewer()
 });
 
 /* Smartphone only: swipe / down-close / double tap */
