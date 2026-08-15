@@ -532,6 +532,22 @@ body.viewer-active .menu{
   }
 }
 
+
+/* Smartphone: keep the page counter flush against the very bottom.
+   This keeps it out of the way when dragging the image downward to close. */
+@media (hover:none) and (pointer:coarse){
+  .viewer-count{
+    bottom:0;
+    border-radius:0;
+    padding:
+      3px 7px
+      max(3px,env(safe-area-inset-bottom));
+    background:rgba(0,0,0,.24);
+    font-size:9px;
+    line-height:1;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -556,7 +572,7 @@ body.viewer-active .menu{
     <button id="reloadBtn" class="menu-action" type="button">更新</button>
     <button id="clearBtn" class="menu-action" type="button">絞り込み解除</button>
   </div>
-  <div class="menu-note">ダブルクリック / ダブルタップで全画面　全画面ではホイール / ピンチで自由拡大</div>
+  <div class="menu-note">TAP ZOOM</div>
 </aside>
 
 <main id="gallery" class="gallery"></main>
@@ -574,7 +590,7 @@ body.viewer-active .menu{
     <button id="viewerPrev" class="viewer-arrow viewer-prev" type="button" aria-label="前の画像">‹</button>
     <button id="viewerNext" class="viewer-arrow viewer-next" type="button" aria-label="次の画像">›</button>
     <div id="viewerCount" class="viewer-count"></div>
-    <div class="mobile-hint">← → NEXT　↓ CLOSE　PINCH ZOOM</div>
+    <div class="mobile-hint">← → NEXT　↓ CLOSE　DOUBLE TAP ZOOM</div>
   </div>
 </section>
 
