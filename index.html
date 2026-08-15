@@ -764,10 +764,8 @@ function preloadImage(src,priority="auto"){
     img.src=src
   })
 }
-async function appendItem(item,index,serial,priority="auto"){
-  const src=item.thumbUrl||item.url||item.originalUrl;
-  const loaded=await preloadImage(src,priority);
-  if(serial!==requestSerial||!loaded.ok)return;
+function appendLoadedItem(item,index,serial,loaded){
+  if(serial!==requestSerial||!loaded?.ok)return;
 
   const btn=document.createElement("button");
   btn.className="card";
@@ -780,12 +778,38 @@ async function appendItem(item,index,serial,priority="auto"){
 
   btn.appendChild(img);
   btn.addEventListener("click",()=>openViewer(index));
+
+  /* APIから届いた順番を絶対に崩さず配置 */
   shortestColumn().appendChild(btn)
 }
+
+async function appendItem(item,index,serial,priority="auto"){
+  const src=item.thumbUrl||item.url||item.originalUrl;
+  const loaded=await preloadImage(src,priority);
+  appendLoadedItem(item,index,serial,loaded)
+}
+
 async function appendBatch(items,startIndex,serial,firstPage){
-  await Promise.all(items.map((item,i)=>
-    appendItem(item,startIndex+i,serial,firstPage&&i<6?"high":"auto")
-  ))
+  /* 画像読み込みは並列、DOM配置だけNotionの並び順どおり */
+  const loading=items.map((item,i)=>{
+    const src=item.thumbUrl||item.url||item.originalUrl;
+    return preloadImage(
+      src,
+      firstPage&&i<6?"high":"auto"
+    )
+  });
+
+  for(let i=0;i<items.length;i++){
+    const loaded=await loading[i];
+    if(serial!==requestSerial)return;
+
+    appendLoadedItem(
+      items[i],
+      startIndex+i,
+      serial,
+      loaded
+    )
+  }
 }
 const META_STORAGE_KEY="notion-image-gallery-meta-v1";
 
@@ -1567,9 +1591,12 @@ window.addEventListener("resize",()=>{
       const oldItems=[...loadedItems];
       createColumns();
 
-      Promise.all(oldItems.map((item,index)=>
-        appendItem(item,index,requestSerial)
-      )).then(()=>requestAnimationFrame(()=>window.scrollTo(0,scrollY)))
+      appendBatch(
+        oldItems,
+        0,
+        requestSerial,
+        false
+      ).then(()=>requestAnimationFrame(()=>window.scrollTo(0,scrollY)))
     }
   },180)
 });
