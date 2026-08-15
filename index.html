@@ -718,17 +718,17 @@ function toggleZoom(clientX=null,clientY=null){
 }
 async function enterRealFullscreen(){
   if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
+
+  /* 画像ビューアだけをFullscreenにする。
+     ページ全体(documentElement)は絶対にFullscreenにしない。 */
   try{
     if(els.viewer.requestFullscreen){
       await els.viewer.requestFullscreen({navigationUI:"hide"});
-      return
     }
-  }catch{}
-  try{
-    if(document.documentElement.requestFullscreen){
-      await document.documentElement.requestFullscreen({navigationUI:"hide"})
-    }
-  }catch{}
+  }catch{
+    /* Notion埋め込み等でFullscreenが許可されない場合は、
+       今の固定オーバーレイ表示のまま使う。 */
+  }
 }
 async function openViewer(index){
   if(index<0||index>=loadedItems.length)return;
