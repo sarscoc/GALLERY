@@ -144,7 +144,7 @@ button{cursor:pointer}
 .menu-button{
   position:fixed;
   top:max(10px,env(safe-area-inset-top));
-  right:10px;
+  left:10px;
   z-index:120;
   width:40px;height:40px;
   border:1px solid rgba(255,255,255,.17);
@@ -159,11 +159,41 @@ button{cursor:pointer}
   line-height:1;
   box-shadow:0 5px 16px rgba(0,0,0,.08);
 }
+
+.viewer-close{
+  position:fixed;
+  top:max(10px,env(safe-area-inset-top));
+  left:10px;
+  z-index:10020;
+  width:40px;
+  height:40px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.17);
+  border-radius:var(--ui-radius);
+  background:rgba(16,16,18,.20);
+  color:#fff;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  display:grid;
+  place-items:center;
+  font-family:inherit;
+  font-size:21px;
+  font-weight:400;
+  line-height:1;
+  box-shadow:0 5px 16px rgba(0,0,0,.08);
+  cursor:pointer;
+  appearance:none;
+  -webkit-appearance:none;
+}
+.viewer-close:hover{
+  background:rgba(16,16,18,.28);
+}
+
 .menu-button span{transform:translateY(-1px)}
 .menu{
   position:fixed;
   top:max(58px,calc(env(safe-area-inset-top) + 58px));
-  right:10px;
+  
   z-index:119;
   width:min(300px,calc(100vw - 20px));
   padding:11px;
@@ -177,6 +207,8 @@ button{cursor:pointer}
   transform:translateY(-5px);
   pointer-events:none;
   transition:opacity .12s ease,transform .12s ease;
+
+  left:10px;
 }
 .menu.open{
   opacity:1;
@@ -282,8 +314,8 @@ button{cursor:pointer}
 /* tag: lazy-loaded when the image viewer opens */
 .viewer-tags{
   position:absolute;
-  top:max(14px,env(safe-area-inset-top));
-  left:16px;
+  top:58px;
+  left:10px;
   z-index:6;
   max-width:min(52vw,620px);
   display:flex;
@@ -319,19 +351,7 @@ button{cursor:pointer}
   opacity:.58;
   margin-right:2px;
 }
-.viewer-close{
-  position:absolute;
-  top:max(14px,env(safe-area-inset-top));
-  right:16px;
-  z-index:5;
-  width:46px;height:46px;
-  border:1px solid rgba(255,255,255,.19);
-  border-radius:var(--ui-radius);
-  background:rgba(0,0,0,.28);
-  color:#fff;
-  font-size:29px;
-  line-height:1;
-}
+
 .viewer-arrow{
   position:absolute;
   top:50%;
@@ -411,31 +431,49 @@ html{
   .viewer{touch-action:none;overscroll-behavior:none}
   .viewer-arrow{display:none}
   .viewer-tags{
-    top:max(58px,calc(env(safe-area-inset-top) + 58px));
-    left:9px;
+    top:58px;
+    left:10px;
     max-width:calc(100vw - 18px);
-    right:9px;
+    
     font-size:11px;
     padding:7px 8px;
   }
-  .viewer-close{
-    width:40px;height:40px;
-    top:max(9px,env(safe-area-inset-top));
-    right:9px;
-    font-size:25px;
-  }
+  
   .mobile-hint{display:block}
 }
 @media(max-width:600px){
   :root{--gap:4px}
   .gallery{padding:4px;gap:4px}
   .gallery-column{gap:4px}
-  .menu-button{top:max(7px,env(safe-area-inset-top));right:7px}
-  .menu{right:7px;top:max(53px,calc(env(safe-area-inset-top) + 53px))}
+  .menu-button{top:max(7px,env(safe-area-inset-top));
+  left:10px;
+}
+  .menu{top:max(53px,calc(env(safe-area-inset-top) + 53px))
+  left:10px;
+}
 }
 
 .viewer-fullscreen:fullscreen .viewer-tags{
   display:none;
+
+  left:10px;
+}
+
+
+/* Notion右上UIと競合しないよう、操作系は左上に統一 */
+body:has(.viewer.open) .menu-button,
+body:has(.viewer.open) .menu{
+  display:none !important;
+
+  left:10px;
+}
+
+
+body.viewer-active .menu-button,
+body.viewer-active .menu{
+  display:none !important;
+
+  left:10px;
 }
 
 </style>
@@ -926,6 +964,7 @@ async function openViewer(index){
   updateViewerImage();
 
   /* 1回クリックでは埋め込み内プレビューだけ。 */
+  document.body.classList.add("viewer-active");
   els.viewer.classList.add("open");
   els.viewer.setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
@@ -968,6 +1007,7 @@ async function go(delta){
   updateViewerImage()
 }
 async function closeViewer(){
+  document.body.classList.remove("viewer-active");
   els.viewer.classList.remove("open");
   els.viewer.setAttribute("aria-hidden","true");
   document.body.style.overflow="";
