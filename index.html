@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <title>Image Gallery</title>
 <style>
 :root{
@@ -11,7 +11,7 @@
   --panel:rgba(18,18,21,.42);
   --panel2:rgba(255,255,255,.06);
   --text:#f4f4f4;
-  --muted:rgba(255,255,255,.58);
+  --muted:rgba(0,0,0,.46);
   --line:rgba(255,255,255,.14);
   --gap:7px;
   --card-radius:0px;
@@ -21,14 +21,13 @@
 html,body{
   margin:0;min-height:100%;
   background:var(--bg);
-  color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
 }
 body{overflow-x:hidden}
 button,select{font:inherit}
 button{cursor:pointer}
 
-/* 既存画像を動かさない固定列Masonry */
+/* ---------- Gallery: stable masonry columns ---------- */
 .gallery{
   width:100%;
   display:flex;
@@ -44,13 +43,20 @@ button{cursor:pointer}
   gap:var(--gap);
 }
 .card{
+  position:relative;
+  z-index:0;
   display:block;
   width:100%;
   padding:0;
   border:0;
   border-radius:var(--card-radius);
-  overflow:hidden;
+  overflow:visible;
   background:transparent;
+  transition:
+    transform .18s cubic-bezier(.2,.7,.25,1),
+    box-shadow .18s ease,
+    filter .18s ease;
+  transform-origin:center center;
 }
 .card img{
   display:block;
@@ -58,30 +64,83 @@ button{cursor:pointer}
   height:auto;
   object-fit:contain;
   background:transparent;
-  transition:transform .14s ease,filter .14s ease;
 }
-.card:hover img{filter:brightness(1.04)}
-.card:active img{transform:scale(.995)}
+@media (hover:hover) and (pointer:fine){
+  .card:hover{
+    z-index:3;
+    transform:scale(1.018);
+    box-shadow:0 7px 18px rgba(0,0,0,.11);
+    filter:brightness(1.015);
+  }
+}
+.card:active{transform:scale(.997)}
 
-.status,.empty{
+.empty{
   width:100%;
-  padding:72px 18px;
+  padding:70px 18px;
   text-align:center;
   color:var(--muted);
-  font-size:13px;
+  font-size:12px;
 }
-.load-more-status{
-  min-height:58px;
+
+/* ---------- Bottom loading ---------- */
+.status{
+  min-height:54px;
+  padding:0;
   display:flex;
   align-items:center;
   justify-content:center;
-  color:rgba(255,255,255,.42);
-  font-size:10px;
-  letter-spacing:.08em;
+}
+.status[hidden]{display:none}
+.loader{
+  width:54px;
+  height:2px;
+  position:relative;
+  overflow:hidden;
+  background:rgba(0,0,0,.07);
+}
+.loader::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  width:42%;
+  background:rgba(0,0,0,.28);
+  animation:gallery-loading 1s ease-in-out infinite;
+}
+@keyframes gallery-loading{
+  0%{transform:translateX(-130%)}
+  100%{transform:translateX(340%)}
+}
+.load-more-status{
+  min-height:54px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:0;
 }
 .load-more-status.hidden{display:none}
+.load-more-status::before{
+  content:"";
+  width:48px;
+  height:2px;
+  display:block;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0,0,0,.25) 42%,
+      rgba(0,0,0,.25) 58%,
+      transparent 100%
+    );
+  background-size:220% 100%;
+  animation:gallery-loading-bottom 1s linear infinite;
+}
+@keyframes gallery-loading-bottom{
+  from{background-position:120% 0}
+  to{background-position:-120% 0}
+}
 
-/* 右上メニュー */
+/* ---------- Floating menu ---------- */
 .menu-button{
   position:fixed;
   top:max(10px,env(safe-area-inset-top));
@@ -98,6 +157,7 @@ button{cursor:pointer}
   place-items:center;
   font-size:21px;
   line-height:1;
+  box-shadow:0 5px 16px rgba(0,0,0,.08);
 }
 .menu-button span{transform:translateY(-1px)}
 .menu{
@@ -126,7 +186,7 @@ button{cursor:pointer}
 .menu-label{
   display:block;
   margin:3px 1px 6px;
-  color:var(--muted);
+  color:rgba(255,255,255,.62);
   font-size:10px;
   letter-spacing:.14em;
   text-transform:uppercase;
@@ -160,12 +220,12 @@ button{cursor:pointer}
 .menu-action.wide{grid-column:1/-1}
 .menu-note{
   padding:8px 1px 1px;
-  color:rgba(255,255,255,.34);
+  color:rgba(255,255,255,.43);
   font-size:10px;
   line-height:1.45;
 }
 
-/* Viewer */
+/* ---------- Viewer ---------- */
 .viewer{
   position:fixed;
   inset:0;
@@ -173,11 +233,12 @@ button{cursor:pointer}
   display:none;
   align-items:center;
   justify-content:center;
-  background:rgba(0,0,0,.76);
+  background:rgba(0,0,0,.24);
   color:#fff;
   overflow:hidden;
 }
 .viewer.open{display:flex}
+.viewer::backdrop{background:rgba(0,0,0,.18)}
 .viewer-stage{
   position:absolute;
   inset:0;
@@ -237,7 +298,7 @@ button{cursor:pointer}
   padding:5px 8px;
   border-radius:var(--ui-radius);
   background:rgba(0,0,0,.26);
-  color:rgba(255,255,255,.64);
+  color:rgba(255,255,255,.70);
   font-size:10px;
   letter-spacing:.08em;
 }
@@ -251,7 +312,7 @@ button{cursor:pointer}
   padding:4px 7px;
   border-radius:var(--ui-radius);
   background:rgba(0,0,0,.22);
-  color:rgba(255,255,255,.42);
+  color:rgba(255,255,255,.56);
   font-size:10px;
   white-space:nowrap;
 }
@@ -263,8 +324,8 @@ button{cursor:pointer}
   transform:translateX(-50%);
   padding:7px 11px;
   border-radius:var(--ui-radius);
-  background:#f5f5f5;
-  color:#111;
+  background:#222;
+  color:#fff;
   font-size:11px;
   opacity:0;
   pointer-events:none;
@@ -274,6 +335,19 @@ button{cursor:pointer}
 
 body.embed .gallery{padding:4px;gap:4px}
 body.embed .gallery-column{gap:4px}
+
+/* ---------- Light minimal scrollbar ---------- */
+html{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.13) transparent;
+}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.13);
+  border-radius:0;
+}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.20)}
 
 @media (hover:none) and (pointer:coarse){
   .viewer{touch-action:none;overscroll-behavior:none}
@@ -293,27 +367,6 @@ body.embed .gallery-column{gap:4px}
   .menu-button{top:max(7px,env(safe-area-inset-top));right:7px}
   .menu{right:7px;top:max(53px,calc(env(safe-area-inset-top) + 53px))}
 }
-
-/* Light minimal scrollbar */
-html{
-  scrollbar-width:thin;
-  scrollbar-color:rgba(0,0,0,.13) transparent;
-}
-::-webkit-scrollbar{
-  width:7px;
-  height:7px;
-}
-::-webkit-scrollbar-track{
-  background:transparent;
-}
-::-webkit-scrollbar-thumb{
-  background:rgba(0,0,0,.13);
-  border-radius:0;
-}
-::-webkit-scrollbar-thumb:hover{
-  background:rgba(0,0,0,.20);
-}
-
 </style>
 </head>
 <body>
@@ -338,11 +391,11 @@ html{
     <button id="reloadBtn" class="menu-action" type="button">更新</button>
     <button id="clearBtn" class="menu-action" type="button">絞り込み解除</button>
   </div>
-  <div class="menu-note">ダブルクリック / ダブルタップで拡大</div>
+  <div class="menu-note">ダブルクリック / ダブルタップで元画像まで拡大</div>
 </aside>
 
-<div id="status" class="status">画像を読み込んでいます…</div>
-<main id="gallery" class="gallery" hidden></main>
+<main id="gallery" class="gallery"></main>
+<div id="status" class="status"><div class="loader" aria-label="読み込み中"></div></div>
 <div id="loadMoreStatus" class="load-more-status hidden">LOADING…</div>
 <div id="loadMoreSentinel" style="height:1px"></div>
 
@@ -367,7 +420,7 @@ const TRY_DEVICE_FULLSCREEN = true;
 
 const initialParams = new URLSearchParams(location.search);
 const embedMode = initialParams.get("embed") === "1";
-if(embedMode) document.body.classList.add("embed");
+if(embedMode)document.body.classList.add("embed");
 
 const els = {
   gallery:document.getElementById("gallery"),
@@ -403,13 +456,13 @@ let touchStart=null,touchLast=null,touchDragging=false;
 let lastTapTime=0,lastTapX=0,lastTapY=0;
 
 const coarsePointer=()=>matchMedia("(hover:none) and (pointer:coarse)").matches;
-
 function base(){return WORKER_URL.replace(/\/+$/,"")}
+
 function showToast(text){
   els.toast.textContent=text;
   els.toast.classList.add("show");
   clearTimeout(showToast.t);
-  showToast.t=setTimeout(()=>els.toast.classList.remove("show"),1400)
+  showToast.t=setTimeout(()=>els.toast.classList.remove("show"),1500)
 }
 function setMenu(open){
   els.menu.classList.toggle("open",open);
@@ -471,12 +524,14 @@ async function apiGet(path,params={},force=false){
   if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
   return data
 }
+
+/* スクショくらいの細さでも3列 */
 function desiredColumnCount(){
   const w=window.innerWidth;
   if(w<380)return 2;
-  if(w<650)return 3;
-  if(w<950)return 4;
-  if(w<1250)return 5;
+  if(w<1050)return 3;
+  if(w<1350)return 4;
+  if(w<1650)return 5;
   return 6
 }
 function createColumns(){
@@ -510,7 +565,8 @@ function preloadImage(src,priority="auto"){
   })
 }
 async function appendItem(item,index,serial,priority="auto"){
-  const loaded=await preloadImage(item.url,priority);
+  const src=item.thumbUrl||item.url||item.originalUrl;
+  const loaded=await preloadImage(src,priority);
   if(serial!==requestSerial||!loaded.ok)return;
 
   const btn=document.createElement("button");
@@ -562,9 +618,7 @@ async function loadNextPage(force=false){
 
   if(firstPage){
     els.status.hidden=false;
-    els.status.style.color="";
-    els.status.textContent="画像を読み込んでいます…";
-    els.gallery.hidden=true
+    els.status.innerHTML='<div class="loader" aria-label="読み込み中"></div>';
   }else{
     els.loadMoreStatus.classList.remove("hidden")
   }
@@ -587,11 +641,6 @@ async function loadNextPage(force=false){
     nextCursor=data.nextCursor||"";
     hasMore=Boolean(data.hasMore);
 
-    if(firstPage){
-      els.status.hidden=true;
-      els.gallery.hidden=false
-    }
-
     await appendBatch(items,startIndex,serial,firstPage);
 
     if(!loadedItems.length&&!hasMore){
@@ -600,11 +649,15 @@ async function loadNextPage(force=false){
   }catch(err){
     console.error(err);
     if(firstPage){
-      els.status.hidden=false;
-      els.status.textContent="読み込みに失敗しました："+err.message;
-      els.status.style.color="#e99"
+      els.status.innerHTML="";
+      const message=document.createElement("div");
+      message.className="empty";
+      message.textContent="読み込みに失敗しました："+err.message;
+      els.gallery.innerHTML="";
+      els.gallery.appendChild(message)
     }
   }finally{
+    if(firstPage)els.status.hidden=true;
     loadingPage=false;
     els.loadMoreStatus.classList.add("hidden")
   }
@@ -618,19 +671,34 @@ async function resetAndLoad(force=false){
   createColumns();
   await loadNextPage(force)
 }
-function resetZoom(){
+
+function viewerSource(item){
+  return item?.previewUrl||item?.url||item?.originalUrl||""
+}
+function originalSource(item){
+  return item?.originalUrl||item?.url||item?.previewUrl||""
+}
+function resetZoom(restorePreview=false){
   zoomed=false;
   els.viewerImage.classList.remove("zoomed");
   els.viewerImage.style.transform="translate3d(0,0,0) scale(1)";
-  els.viewerImage.style.transformOrigin="center center"
+  els.viewerImage.style.transformOrigin="center center";
+
+  if(restorePreview&&currentIndex>=0&&loadedItems[currentIndex]){
+    const src=viewerSource(loadedItems[currentIndex]);
+    if(src&&els.viewerImage.src!==src)els.viewerImage.src=src
+  }
 }
 function toggleZoom(clientX=null,clientY=null){
   if(!els.viewer.classList.contains("open"))return;
 
   if(zoomed){
-    resetZoom();
+    resetZoom(true);
     return
   }
+
+  const item=loadedItems[currentIndex];
+  if(!item)return;
 
   zoomed=true;
   els.viewerImage.classList.add("zoomed");
@@ -644,25 +712,24 @@ function toggleZoom(clientX=null,clientY=null){
     }
   }
 
+  const original=originalSource(item);
+  if(original)els.viewerImage.src=original;
   els.viewerImage.style.transform=`translate3d(0,0,0) scale(${ZOOM_SCALE})`
 }
 async function enterRealFullscreen(){
   if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
-
   try{
     if(els.viewer.requestFullscreen){
       await els.viewer.requestFullscreen({navigationUI:"hide"});
-      return;
+      return
     }
   }catch{}
-
   try{
     if(document.documentElement.requestFullscreen){
-      await document.documentElement.requestFullscreen({navigationUI:"hide"});
+      await document.documentElement.requestFullscreen({navigationUI:"hide"})
     }
   }catch{}
 }
-
 async function openViewer(index){
   if(index<0||index>=loadedItems.length)return;
 
@@ -674,8 +741,7 @@ async function openViewer(index){
   els.viewer.setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
 
-  /* PC / スマホどちらでも実際の全画面表示を試す */
-  await enterRealFullscreen();
+  await enterRealFullscreen()
 }
 function updateViewerImage(){
   if(currentIndex<0||!loadedItems[currentIndex])return;
@@ -684,7 +750,7 @@ function updateViewerImage(){
   const item=loadedItems[currentIndex];
 
   els.viewerImage.style.opacity=".45";
-  els.viewerImage.src=item.url;
+  els.viewerImage.src=viewerSource(item);
   els.viewerImage.alt=item.title||"";
   els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
 
@@ -723,7 +789,7 @@ async function closeViewer(){
   }
 }
 
-/* PC: ダブルクリックでズーム */
+/* Desktop: buttons / keyboard / double-click zoom */
 els.viewerImage.addEventListener("dblclick",e=>{
   if(coarsePointer())return;
   e.preventDefault();
@@ -731,14 +797,12 @@ els.viewerImage.addEventListener("dblclick",e=>{
   toggleZoom(e.clientX,e.clientY)
 });
 
-/* 画像以外の何もない場所をクリックしても閉じる */
+/* Empty area closes viewer */
 els.viewer.addEventListener("click",e=>{
-  if(e.target===els.viewer||e.target===els.viewerStage){
-    closeViewer()
-  }
+  if(e.target===els.viewer||e.target===els.viewerStage)closeViewer()
 });
 
-/* スマホだけ：左右スワイプ / 下スワイプ / ダブルタップ */
+/* Smartphone only: swipe / down-close / double tap */
 els.viewer.addEventListener("touchstart",e=>{
   if(!coarsePointer()||e.touches.length!==1)return;
   const t=e.touches[0];
@@ -776,7 +840,6 @@ els.viewer.addEventListener("touchmove",e=>{
 
   const dx=touchLast.x-touchStart.x;
   const dy=touchLast.y-touchStart.y;
-
   let tx=dx,ty=0;
 
   if(Math.abs(dy)>Math.abs(dx)){
@@ -794,10 +857,7 @@ els.viewer.addEventListener("touchmove",e=>{
 
 els.viewer.addEventListener("touchend",()=>{
   if(!coarsePointer()||!touchDragging||!touchStart||!touchLast||zoomed){
-    touchDragging=false;
-    touchStart=null;
-    touchLast=null;
-    return
+    touchDragging=false;touchStart=null;touchLast=null;return
   }
 
   const dx=touchLast.x-touchStart.x;
@@ -814,9 +874,7 @@ els.viewer.addEventListener("touchend",()=>{
     go(dx<0?1:-1)
   }
 
-  touchDragging=false;
-  touchStart=null;
-  touchLast=null
+  touchDragging=false;touchStart=null;touchLast=null
 });
 
 els.menuButton.addEventListener("click",e=>{
@@ -869,13 +927,10 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="Escape")closeViewer()
 });
 
-/* 下に近づいたら次ページだけ取得 */
+/* 下に近づいたら次ページ */
 const observer=new IntersectionObserver(entries=>{
-  if(entries.some(x=>x.isIntersecting)){
-    loadNextPage()
-  }
+  if(entries.some(x=>x.isIntersecting))loadNextPage()
 },{root:null,rootMargin:"700px 0px",threshold:0});
-
 observer.observe(els.sentinel);
 
 let resizeTimer;
@@ -884,28 +939,13 @@ window.addEventListener("resize",()=>{
   resizeTimer=setTimeout(()=>{
     const wanted=desiredColumnCount();
     if(columns.length&&columns.length!==wanted){
-      /* 既存画像の並びをガタつかせないため、列数変更時だけ一度再描画 */
       const scrollY=window.scrollY;
+      const oldItems=[...loadedItems];
       createColumns();
 
-      document.querySelectorAll(".card").forEach(x=>x.remove());
-
-      loadedItems.forEach((item,index)=>{
-        preloadImage(item.url).then(loaded=>{
-          if(!loaded.ok)return;
-          const btn=document.createElement("button");
-          btn.className="card";
-          btn.type="button";
-          btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
-          loaded.img.alt=item.title||"";
-          loaded.img.draggable=false;
-          btn.appendChild(loaded.img);
-          btn.addEventListener("click",()=>openViewer(index));
-          shortestColumn().appendChild(btn)
-        })
-      });
-
-      requestAnimationFrame(()=>window.scrollTo(0,scrollY))
+      Promise.all(oldItems.map((item,index)=>
+        appendItem(item,index,requestSerial)
+      )).then(()=>requestAnimationFrame(()=>window.scrollTo(0,scrollY)))
     }
   },180)
 });
@@ -927,7 +967,7 @@ window.addEventListener("resize",()=>{
 
   createColumns();
 
-  /* 画像を最優先。メニュー候補は裏で読み込む */
+  /* 画像最優先。メニュー候補は後ろで取得 */
   await loadNextPage();
   loadMeta()
 })();
