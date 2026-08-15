@@ -233,7 +233,7 @@ button{cursor:pointer}
   display:none;
   align-items:center;
   justify-content:center;
-  background:rgba(0,0,0,.18);
+  background:rgba(0,0,0,.32);
   color:#fff;
   overflow:hidden;
 }
@@ -783,23 +783,35 @@ function renderViewerTags(items){
     els.viewerTags.childElementCount>0
   )
 }
-async function loadViewerTags(pageId){
+async function loadViewerTags(item){
   const serial=++tagInfoSerial;
   els.viewerTags.replaceChildren();
   els.viewerTags.classList.remove("show");
 
-  if(!pageId)return;
+  if(!item?.pageId)return;
+
+  /* R2に既にtag JSONがある場合、gallery-pageのレスポンスに
+     tagItemsを同梱するので通信待ちなしで即表示。 */
+  if(Array.isArray(item.tagItems)){
+    renderViewerTags(item.tagItems);
+    return;
+  }
 
   try{
-    let data=tagInfoCache.get(pageId);
+    let data=tagInfoCache.get(item.tagKey||item.pageId);
 
     if(!data){
-      data=await apiGet("/tag-info",{page_id:pageId});
-      tagInfoCache.set(pageId,data)
+      data=await apiGet("/tag-info",{
+        page_id:item.pageId,
+        tag_key:item.tagKey||""
+      });
+      tagInfoCache.set(item.tagKey||item.pageId,data);
     }
 
     if(serial!==tagInfoSerial)return;
-    renderViewerTags(data.items||[])
+
+    item.tagItems=Array.isArray(data.items)?data.items:[];
+    renderViewerTags(item.tagItems);
   }catch(err){
     console.warn("tag-info:",err)
   }
@@ -887,7 +899,7 @@ function updateViewerImage(){
   els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
 
   requestAnimationFrame(()=>els.viewerImage.style.opacity="1");
-  loadViewerTags(item.pageId);
+  loadViewerTags(item);
 
   if(hasMore&&currentIndex>=loadedItems.length-4){
     loadNextPage()
