@@ -233,7 +233,7 @@ button{cursor:pointer}
   display:none;
   align-items:center;
   justify-content:center;
-  background:rgba(0,0,0,.12);
+  background:rgba(0,0,0,.18);
   color:#fff;
   overflow:hidden;
 }
@@ -251,10 +251,10 @@ button{cursor:pointer}
   inset:0;
   width:100vw;
   height:100vh;
-  background:transparent;
+  background:#000;
 }
 .viewer-fullscreen::backdrop{
-  background:transparent;
+  background:#000;
 }
 .viewer-stage{
   position:absolute;
@@ -433,6 +433,11 @@ html{
   .menu-button{top:max(7px,env(safe-area-inset-top));right:7px}
   .menu{right:7px;top:max(53px,calc(env(safe-area-inset-top) + 53px))}
 }
+
+.viewer-fullscreen:fullscreen .viewer-tags{
+  display:none;
+}
+
 </style>
 </head>
 <body>
@@ -847,14 +852,13 @@ function toggleZoom(clientX=null,clientY=null){
 async function enterRealFullscreen(){
   if(!TRY_DEVICE_FULLSCREEN||document.fullscreenElement)return;
 
-  /* 専用レイヤーだけをFullscreen化。
-     ギャラリー本体もviewer背景もFullscreen要素に含めない。 */
   try{
     if(els.viewerFullscreen.requestFullscreen){
+      els.viewer.dataset.wasFullscreen="1";
       await els.viewerFullscreen.requestFullscreen({navigationUI:"hide"});
     }
   }catch{
-    /* Notion埋め込み等でFullscreen不可なら固定オーバーレイのまま。 */
+    /* Fullscreen不可なら埋め込み内プレビューのまま。 */
   }
 }
 async function openViewer(index){
@@ -864,11 +868,10 @@ async function openViewer(index){
   resetZoom();
   updateViewerImage();
 
+  /* 1回クリックでは埋め込み内プレビューだけ。 */
   els.viewer.classList.add("open");
   els.viewer.setAttribute("aria-hidden","false");
   document.body.style.overflow="hidden";
-
-  await enterRealFullscreen()
 }
 function updateViewerImage(){
   if(currentIndex<0||!loadedItems[currentIndex])return;
@@ -915,17 +918,24 @@ async function closeViewer(){
   resetZoom();
   clearViewerTags();
 
+  els.viewer.dataset.wasFullscreen="";
+
   if(document.fullscreenElement){
     try{await document.exitFullscreen()}catch{}
   }
 }
 
 /* Desktop: buttons / keyboard / double-click zoom */
-els.viewerImage.addEventListener("dblclick",e=>{
+els.viewerImage.addEventListener("dblclick",async e=>{
   if(coarsePointer())return;
   e.preventDefault();
   e.stopPropagation();
-  toggleZoom(e.clientX,e.clientY)
+
+  if(!document.fullscreenElement){
+    await enterRealFullscreen();
+  }else{
+    toggleZoom(e.clientX,e.clientY);
+  }
 });
 
 /* Empty area closes viewer */
@@ -934,7 +944,9 @@ els.viewer.addEventListener("click",e=>{
     e.target===els.viewer||
     e.target===els.viewerFullscreen||
     e.target===els.viewerStage
-  )closeViewer()
+  ){
+    closeViewer();
+  }
 });
 
 /* Smartphone only: swipe / down-close / double tap */
@@ -947,7 +959,13 @@ els.viewer.addEventListener("touchstart",e=>{
 
   if(now-lastTapTime<320&&nearPreviousTap){
     e.preventDefault();
-    toggleZoom(t.clientX,t.clientY);
+
+    if(!document.fullscreenElement){
+      enterRealFullscreen();
+    }else{
+      toggleZoom(t.clientX,t.clientY);
+    }
+
     lastTapTime=0;
     touchDragging=false;
     touchStart=null;
@@ -1053,6 +1071,20 @@ els.viewerPrev.addEventListener("click",e=>{
 els.viewerNext.addEventListener("click",e=>{
   e.stopPropagation();
   go(1)
+});
+
+
+document.addEventListener("fullscreenchange",()=>{
+  /* ブラウザのEsc等で本物のFullscreenを抜けた場合も、
+     プレビューへ戻さず最初のギャラリーへ戻る。 */
+  if(
+    !document.fullscreenElement &&
+    els.viewer.classList.contains("open") &&
+    els.viewer.dataset.wasFullscreen==="1"
+  ){
+    els.viewer.dataset.wasFullscreen="";
+    closeViewer();
+  }
 });
 
 document.addEventListener("keydown",e=>{
