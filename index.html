@@ -3,135 +3,345 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="dark">
 <title>Image Gallery</title>
 <style>
 :root{
-  --bg:#f6f6f6;--panel:#fff;--text:#222;--muted:#8b8b8b;--line:#e7e7e7;
-  --radius:12px;--gap:8px
+  --bg:rgba(8,8,10,.48);
+  --panel:rgba(18,18,21,.74);
+  --panel2:rgba(255,255,255,.06);
+  --text:#f4f4f4;
+  --muted:rgba(255,255,255,.58);
+  --line:rgba(255,255,255,.14);
+  --gap:7px;
+  --card-radius:0px;
+  --ui-radius:3px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
-button,select{font:inherit}button{cursor:pointer}
-body.embed{background:#fff}
-.topbar{
-  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  padding:10px 12px;background:rgba(246,246,246,.94);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--line)
+html,body{
+  margin:0;min-height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
 }
-.brand{font-weight:700;letter-spacing:.08em;margin-right:auto}
-.control{
-  height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#222;
-  padding:0 10px;min-width:150px;max-width:220px
-}
-.copy-btn,.clear-btn,.reload-btn{
-  height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#222;padding:0 12px
-}
-.copy-btn:active,.clear-btn:active,.reload-btn:active{transform:translateY(1px)}
-.status{padding:32px 16px;text-align:center;color:var(--muted);font-size:14px}
+body{overflow-x:hidden}
+button,select{font:inherit}
+button{cursor:pointer}
+
+/* 既存画像を動かさない固定列Masonry */
 .gallery{
-  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--gap);
-  padding:var(--gap);max-width:1500px;margin:0 auto
+  width:100%;
+  display:flex;
+  align-items:flex-start;
+  gap:var(--gap);
+  padding:var(--gap);
+}
+.gallery-column{
+  flex:1 1 0;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap);
 }
 .card{
-  position:relative;aspect-ratio:1/1;border:0;padding:0;overflow:hidden;
-  border-radius:var(--radius);background:#e9e9e9
+  display:block;
+  width:100%;
+  padding:0;
+  border:0;
+  border-radius:var(--card-radius);
+  overflow:hidden;
+  background:rgba(255,255,255,.03);
 }
 .card img{
-  display:block;width:100%;height:100%;object-fit:cover;
-  transition:transform .16s ease,opacity .2s ease
+  display:block;
+  width:100%;
+  height:auto;
+  object-fit:contain;
+  background:transparent;
+  transition:transform .14s ease,filter .14s ease;
 }
-.card:active img{transform:scale(.985)}
-.card img[data-loading="1"]{opacity:0}
-.empty{grid-column:1/-1;padding:64px 16px;text-align:center;color:var(--muted)}
+.card:hover img{filter:brightness(1.04)}
+.card:active img{transform:scale(.995)}
+
+.status,.empty{
+  width:100%;
+  padding:72px 18px;
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+}
+.load-more-status{
+  min-height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.42);
+  font-size:10px;
+  letter-spacing:.08em;
+}
+.load-more-status.hidden{display:none}
+
+/* 右上メニュー */
+.menu-button{
+  position:fixed;
+  top:max(10px,env(safe-area-inset-top));
+  right:10px;
+  z-index:120;
+  width:40px;height:40px;
+  border:1px solid rgba(255,255,255,.17);
+  border-radius:var(--ui-radius);
+  background:rgba(16,16,18,.48);
+  color:#fff;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  display:grid;
+  place-items:center;
+  font-size:21px;
+  line-height:1;
+}
+.menu-button span{transform:translateY(-1px)}
+.menu{
+  position:fixed;
+  top:max(58px,calc(env(safe-area-inset-top) + 58px));
+  right:10px;
+  z-index:119;
+  width:min(300px,calc(100vw - 20px));
+  padding:11px;
+  border:1px solid var(--line);
+  border-radius:var(--ui-radius);
+  background:var(--panel);
+  backdrop-filter:blur(22px) saturate(120%);
+  -webkit-backdrop-filter:blur(22px) saturate(120%);
+  box-shadow:0 18px 50px rgba(0,0,0,.20);
+  opacity:0;
+  transform:translateY(-5px);
+  pointer-events:none;
+  transition:opacity .12s ease,transform .12s ease;
+}
+.menu.open{
+  opacity:1;
+  transform:translateY(0);
+  pointer-events:auto;
+}
+.menu-label{
+  display:block;
+  margin:3px 1px 6px;
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.control{
+  width:100%;
+  height:40px;
+  margin:0 0 9px;
+  padding:0 9px;
+  border:1px solid var(--line);
+  border-radius:var(--ui-radius);
+  background:rgba(255,255,255,.055);
+  color:#fff;
+  outline:none;
+}
+.control option{color:#111;background:#fff}
+.menu-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.menu-action{
+  min-height:38px;
+  border:1px solid var(--line);
+  border-radius:var(--ui-radius);
+  background:var(--panel2);
+  color:#fff;
+  padding:7px 8px;
+  font-size:12px;
+}
+.menu-action.wide{grid-column:1/-1}
+.menu-note{
+  padding:8px 1px 1px;
+  color:rgba(255,255,255,.34);
+  font-size:10px;
+  line-height:1.45;
+}
+
+/* Viewer */
 .viewer{
-  position:fixed;inset:0;z-index:9999;background:#070707;color:#fff;
-  display:none;align-items:center;justify-content:center;touch-action:none;overscroll-behavior:none
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,.86);
+  color:#fff;
+  overflow:hidden;
 }
 .viewer.open{display:flex}
-.viewer-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.viewer-stage{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
 .viewer-image{
-  display:block;max-width:100vw;max-height:100vh;width:auto;height:auto;object-fit:contain;
-  user-select:none;-webkit-user-drag:none;will-change:transform,opacity
+  display:block;
+  max-width:100vw;
+  max-height:100vh;
+  width:auto;height:auto;
+  object-fit:contain;
+  user-select:none;
+  -webkit-user-drag:none;
+  will-change:transform,opacity;
+  transform-origin:center center;
+  transition:transform .16s ease,opacity .14s ease;
+  cursor:zoom-in;
 }
-.viewer-top{
-  position:absolute;top:max(10px,env(safe-area-inset-top));left:12px;right:12px;
-  display:flex;align-items:center;justify-content:space-between;z-index:3;pointer-events:none
-}
-.viewer-count{
-  font-size:12px;color:rgba(255,255,255,.72);background:rgba(0,0,0,.25);
-  padding:6px 9px;border-radius:999px
-}
+.viewer-image.zoomed{cursor:zoom-out}
 .viewer-close{
-  pointer-events:auto;border:0;border-radius:999px;width:38px;height:38px;
-  background:rgba(0,0,0,.34);color:#fff;font-size:23px;line-height:1
+  position:absolute;
+  top:max(14px,env(safe-area-inset-top));
+  right:16px;
+  z-index:5;
+  width:46px;height:46px;
+  border:1px solid rgba(255,255,255,.19);
+  border-radius:var(--ui-radius);
+  background:rgba(0,0,0,.28);
+  color:#fff;
+  font-size:29px;
+  line-height:1;
 }
 .viewer-arrow{
-  position:absolute;top:50%;transform:translateY(-50%);z-index:3;border:0;border-radius:999px;
-  width:44px;height:44px;background:rgba(0,0,0,.28);color:#fff;font-size:25px
+  position:absolute;
+  top:50%;
+  z-index:5;
+  transform:translateY(-50%);
+  width:52px;height:52px;
+  border:1px solid rgba(255,255,255,.19);
+  border-radius:var(--ui-radius);
+  background:rgba(0,0,0,.28);
+  color:#fff;
+  font-size:34px;
+  line-height:1;
 }
-.viewer-prev{left:12px}.viewer-next{right:12px}
-.viewer-hint{
-  position:absolute;left:50%;bottom:max(12px,env(safe-area-inset-bottom));
-  transform:translateX(-50%);z-index:3;font-size:11px;color:rgba(255,255,255,.55);
-  background:rgba(0,0,0,.22);padding:5px 8px;border-radius:999px;white-space:nowrap
+.viewer-prev{left:16px}
+.viewer-next{right:16px}
+.viewer-count{
+  position:absolute;
+  left:50%;
+  bottom:max(14px,env(safe-area-inset-bottom));
+  z-index:5;
+  transform:translateX(-50%);
+  padding:5px 8px;
+  border-radius:var(--ui-radius);
+  background:rgba(0,0,0,.26);
+  color:rgba(255,255,255,.64);
+  font-size:10px;
+  letter-spacing:.08em;
+}
+.mobile-hint{
+  display:none;
+  position:absolute;
+  left:50%;
+  top:max(13px,env(safe-area-inset-top));
+  z-index:4;
+  transform:translateX(-50%);
+  padding:4px 7px;
+  border-radius:var(--ui-radius);
+  background:rgba(0,0,0,.22);
+  color:rgba(255,255,255,.42);
+  font-size:10px;
+  white-space:nowrap;
 }
 .toast{
-  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;
-  background:#222;color:#fff;border-radius:999px;padding:8px 13px;font-size:12px;
-  opacity:0;pointer-events:none;transition:opacity .15s ease
+  position:fixed;
+  left:50%;
+  bottom:22px;
+  z-index:10001;
+  transform:translateX(-50%);
+  padding:7px 11px;
+  border-radius:var(--ui-radius);
+  background:#f5f5f5;
+  color:#111;
+  font-size:11px;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .14s ease;
 }
 .toast.show{opacity:1}
-body.embed .topbar{display:none}
-body.embed .gallery{padding:4px;gap:4px;max-width:none}
-body.embed .card{border-radius:8px}
-body.embed .status{padding:20px 12px}
-@media(max-width:1100px){.gallery{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:760px){
-  :root{--gap:5px;--radius:8px}
-  .topbar{padding:8px}.brand{width:100%;margin-bottom:2px}
-  .control{min-width:0;max-width:none;flex:1 1 42%;height:36px}
-  .copy-btn,.clear-btn,.reload-btn{height:36px;flex:1 1 auto}
-  .gallery{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+body.embed .gallery{padding:4px;gap:4px}
+body.embed .gallery-column{gap:4px}
+
+@media (hover:none) and (pointer:coarse){
+  .viewer{touch-action:none;overscroll-behavior:none}
   .viewer-arrow{display:none}
+  .viewer-close{
+    width:40px;height:40px;
+    top:max(9px,env(safe-area-inset-top));
+    right:9px;
+    font-size:25px;
+  }
+  .mobile-hint{display:block}
+}
+@media(max-width:600px){
+  :root{--gap:4px}
+  .gallery{padding:4px;gap:4px}
+  .gallery-column{gap:4px}
+  .menu-button{top:max(7px,env(safe-area-inset-top));right:7px}
+  .menu{right:7px;top:max(53px,calc(env(safe-area-inset-top) + 53px))}
 }
 </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">ɢᴀʟʟᴇʀʏ</div>
-  <select id="investigatorFilter" class="control" aria-label="Investigator">
-    <option value="">ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ：すべて</option>
+
+<button id="menuButton" class="menu-button" type="button" aria-label="メニュー" aria-expanded="false">
+  <span>≡</span>
+</button>
+
+<aside id="menu" class="menu" aria-hidden="true">
+  <label class="menu-label" for="investigatorFilter">ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ</label>
+  <select id="investigatorFilter" class="control">
+    <option value="">すべて</option>
   </select>
-  <select id="typeFilter" class="control" aria-label="種別">
-    <option value="">種別：すべて</option>
+
+  <label class="menu-label" for="typeFilter">種別</label>
+  <select id="typeFilter" class="control">
+    <option value="">すべて</option>
   </select>
-  <button id="copyEmbedBtn" class="copy-btn" type="button">埋め込みURLをコピー</button>
-  <button id="reloadBtn" class="reload-btn" type="button">更新</button>
-  <button id="clearBtn" class="clear-btn" type="button">解除</button>
-</header>
+
+  <div class="menu-actions">
+    <button id="copyEmbedBtn" class="menu-action wide" type="button">埋め込みURLをコピー</button>
+    <button id="reloadBtn" class="menu-action" type="button">更新</button>
+    <button id="clearBtn" class="menu-action" type="button">絞り込み解除</button>
+  </div>
+  <div class="menu-note">ダブルクリック / ダブルタップで拡大</div>
+</aside>
 
 <div id="status" class="status">画像を読み込んでいます…</div>
 <main id="gallery" class="gallery" hidden></main>
+<div id="loadMoreStatus" class="load-more-status hidden">LOADING…</div>
+<div id="loadMoreSentinel" style="height:1px"></div>
 
 <section id="viewer" class="viewer" aria-hidden="true">
   <div id="viewerStage" class="viewer-stage">
     <img id="viewerImage" class="viewer-image" alt="">
   </div>
-  <div class="viewer-top">
-    <button id="viewerClose" class="viewer-close" type="button" aria-label="閉じる">×</button>
-    <div id="viewerCount" class="viewer-count"></div>
-  </div>
+  <button id="viewerClose" class="viewer-close" type="button" aria-label="閉じる">×</button>
   <button id="viewerPrev" class="viewer-arrow viewer-prev" type="button" aria-label="前の画像">‹</button>
   <button id="viewerNext" class="viewer-arrow viewer-next" type="button" aria-label="次の画像">›</button>
-  <div class="viewer-hint">← → 次の画像　↓ グリッドへ戻る</div>
+  <div id="viewerCount" class="viewer-count"></div>
+  <div class="mobile-hint">← → NEXT　↓ CLOSE　DOUBLE TAP ZOOM</div>
 </section>
 
 <div id="toast" class="toast"></div>
 
 <script>
-/* すでに作成済みのCloudflare Worker */
-const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev";
+const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
+const PAGE_SIZE = 18;
+const ZOOM_SCALE = 2.5;
 const TRY_DEVICE_FULLSCREEN = true;
 
 const initialParams = new URLSearchParams(location.search);
@@ -141,12 +351,17 @@ if(embedMode) document.body.classList.add("embed");
 const els = {
   gallery:document.getElementById("gallery"),
   status:document.getElementById("status"),
+  loadMoreStatus:document.getElementById("loadMoreStatus"),
+  sentinel:document.getElementById("loadMoreSentinel"),
+  menuButton:document.getElementById("menuButton"),
+  menu:document.getElementById("menu"),
   investigator:document.getElementById("investigatorFilter"),
   type:document.getElementById("typeFilter"),
   copy:document.getElementById("copyEmbedBtn"),
   reload:document.getElementById("reloadBtn"),
   clear:document.getElementById("clearBtn"),
   viewer:document.getElementById("viewer"),
+  viewerStage:document.getElementById("viewerStage"),
   viewerImage:document.getElementById("viewerImage"),
   viewerCount:document.getElementById("viewerCount"),
   viewerClose:document.getElementById("viewerClose"),
@@ -155,19 +370,30 @@ const els = {
   toast:document.getElementById("toast")
 };
 
-let visibleItems=[];
-let currentIndex=-1;
-let pointerStart=null,pointerLast=null,dragging=false;
+let columns=[];
+let loadedItems=[];
+let nextCursor="";
+let hasMore=true;
+let loadingPage=false;
 let requestSerial=0;
+let currentIndex=-1;
+let zoomed=false;
+let touchStart=null,touchLast=null,touchDragging=false;
+let lastTapTime=0,lastTapX=0,lastTapY=0;
+
+const coarsePointer=()=>matchMedia("(hover:none) and (pointer:coarse)").matches;
 
 function base(){return WORKER_URL.replace(/\/+$/,"")}
 function showToast(text){
-  els.toast.textContent=text;els.toast.classList.add("show");
-  clearTimeout(showToast.t);showToast.t=setTimeout(()=>els.toast.classList.remove("show"),1600)
+  els.toast.textContent=text;
+  els.toast.classList.add("show");
+  clearTimeout(showToast.t);
+  showToast.t=setTimeout(()=>els.toast.classList.remove("show"),1400)
 }
-function setStatus(text,isError=false){
-  els.status.hidden=false;els.status.textContent=text;els.status.style.color=isError?"#b42318":"";
-  els.gallery.hidden=true
+function setMenu(open){
+  els.menu.classList.toggle("open",open);
+  els.menu.setAttribute("aria-hidden",open?"false":"true");
+  els.menuButton.setAttribute("aria-expanded",open?"true":"false")
 }
 function currentFilters(){
   return {investigator:els.investigator.value||"",type:els.type.value||""}
@@ -187,25 +413,30 @@ function makeEmbedUrl(){
   const {investigator,type}=currentFilters();
   investigator?u.searchParams.set("investigator",investigator):u.searchParams.delete("investigator");
   type?u.searchParams.set("type",type):u.searchParams.delete("type");
-  u.searchParams.set("embed","1");u.searchParams.delete("refresh");
+  u.searchParams.set("embed","1");
+  u.searchParams.delete("refresh");
   return u.toString()
 }
 async function copyText(text){
   try{await navigator.clipboard.writeText(text)}
   catch{
-    const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);
-    ta.select();document.execCommand("copy");ta.remove()
+    const ta=document.createElement("textarea");
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    document.execCommand("copy");ta.remove()
   }
 }
-function fillSelect(select,rows,prefix,selected){
+function fillSelect(select,rows,selected){
   while(select.options.length>1)select.remove(1);
   for(const row of rows){
     const opt=document.createElement("option");
-    opt.value=row.value;opt.textContent=`${prefix}：${row.label}`;select.appendChild(opt)
+    opt.value=row.value;
+    opt.textContent=row.label;
+    select.appendChild(opt)
   }
   select.value=selected||"";
   if(selected&&select.value!==selected){
-    const o=new Option(`${prefix}：指定中`,selected);select.add(o);select.value=selected
+    const o=new Option("指定中",selected);
+    select.add(o);select.value=selected
   }
 }
 async function apiGet(path,params={},force=false){
@@ -219,166 +450,454 @@ async function apiGet(path,params={},force=false){
   if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
   return data
 }
+function desiredColumnCount(){
+  const w=window.innerWidth;
+  if(w<380)return 2;
+  if(w<650)return 3;
+  if(w<950)return 4;
+  if(w<1250)return 5;
+  return 6
+}
+function createColumns(){
+  const count=desiredColumnCount();
+  els.gallery.innerHTML="";
+  columns=[];
+  for(let i=0;i<count;i++){
+    const col=document.createElement("div");
+    col.className="gallery-column";
+    els.gallery.appendChild(col);
+    columns.push(col)
+  }
+}
+function shortestColumn(){
+  let best=columns[0];
+  let bestH=best?.offsetHeight??0;
+  for(let i=1;i<columns.length;i++){
+    const h=columns[i].offsetHeight;
+    if(h<bestH){best=columns[i];bestH=h}
+  }
+  return best
+}
+function preloadImage(src,priority="auto"){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.decoding="async";
+    img.fetchPriority=priority;
+    img.onload=()=>resolve({ok:true,img});
+    img.onerror=()=>resolve({ok:false,img});
+    img.src=src
+  })
+}
+async function appendItem(item,index,serial,priority="auto"){
+  const loaded=await preloadImage(item.url,priority);
+  if(serial!==requestSerial||!loaded.ok)return;
 
-/* 通常画面だけフィルター候補を取得。
-   embed=1 ではこの通信そのものをしないので、キャラ埋め込みが軽くなります。 */
-async function loadMeta(){
-  if(embedMode)return;
+  const btn=document.createElement("button");
+  btn.className="card";
+  btn.type="button";
+  btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
+
+  const img=loaded.img;
+  img.alt=item.title||"";
+  img.draggable=false;
+
+  btn.appendChild(img);
+  btn.addEventListener("click",()=>openViewer(index));
+  shortestColumn().appendChild(btn)
+}
+async function appendBatch(items,startIndex,serial,firstPage){
+  await Promise.all(items.map((item,i)=>
+    appendItem(item,startIndex+i,serial,firstPage&&i<6?"high":"auto")
+  ))
+}
+async function loadMeta(force=false){
   try{
-    const data=await apiGet("/meta");
-    const wantedInv=initialParams.get("investigator")||"";
-    const wantedType=initialParams.get("type")||"";
+    const data=await apiGet("/meta",{},force);
+    const wantedInv=els.investigator.value||initialParams.get("investigator")||"";
+    const wantedType=els.type.value||initialParams.get("type")||"";
+
     fillSelect(
       els.investigator,
       (data.investigators||[]).map(x=>({value:x.id,label:x.name||x.id})),
-      "ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ",wantedInv
+      wantedInv
     );
     fillSelect(
       els.type,
       (data.types||[]).map(x=>({value:x,label:x})),
-      "種別",wantedType
+      wantedType
     );
+
+    if(data.warnings?.length)console.warn("Meta warnings:",data.warnings)
   }catch(err){
-    console.warn("meta:",err);
+    console.warn("meta:",err)
   }
 }
+async function loadNextPage(force=false){
+  if(loadingPage||!hasMore)return;
+  loadingPage=true;
 
-async function loadGallery(force=false){
-  const serial=++requestSerial;
-  const {investigator,type}=currentFilters();
-  setStatus("画像を読み込んでいます…");
+  const serial=requestSerial;
+  const firstPage=loadedItems.length===0;
+
+  if(firstPage){
+    els.status.hidden=false;
+    els.status.style.color="";
+    els.status.textContent="画像を読み込んでいます…";
+    els.gallery.hidden=true
+  }else{
+    els.loadMoreStatus.classList.remove("hidden")
+  }
+
   try{
-    const data=await apiGet("/gallery",{investigator,type},force);
+    const {investigator,type}=currentFilters();
+    const data=await apiGet("/gallery-page",{
+      investigator,
+      type,
+      cursor:nextCursor,
+      page_size:PAGE_SIZE
+    },force);
+
     if(serial!==requestSerial)return;
-    visibleItems=Array.isArray(data.items)?data.items:[];
-    renderGallery();
-    if(data.warnings?.length)console.warn("Gallery warnings:",data.warnings)
+
+    const items=Array.isArray(data.items)?data.items:[];
+    const startIndex=loadedItems.length;
+
+    loadedItems.push(...items);
+    nextCursor=data.nextCursor||"";
+    hasMore=Boolean(data.hasMore);
+
+    if(firstPage){
+      els.status.hidden=true;
+      els.gallery.hidden=false
+    }
+
+    await appendBatch(items,startIndex,serial,firstPage);
+
+    if(!loadedItems.length&&!hasMore){
+      els.gallery.innerHTML='<div class="empty">該当する画像がありません。</div>'
+    }
   }catch(err){
-    if(serial!==requestSerial)return;
-    console.error(err);setStatus("読み込みに失敗しました："+err.message,true)
+    console.error(err);
+    if(firstPage){
+      els.status.hidden=false;
+      els.status.textContent="読み込みに失敗しました："+err.message;
+      els.status.style.color="#e99"
+    }
+  }finally{
+    loadingPage=false;
+    els.loadMoreStatus.classList.add("hidden")
   }
 }
-
-function renderGallery(){
-  els.gallery.innerHTML="";els.status.hidden=true;els.gallery.hidden=false;
-  if(!visibleItems.length){
-    els.gallery.innerHTML='<div class="empty">該当する画像がありません。</div>';return
-  }
-  const frag=document.createDocumentFragment();
-  visibleItems.forEach((item,index)=>{
-    const btn=document.createElement("button");
-    btn.className="card";btn.type="button";btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
-    const img=document.createElement("img");
-    img.src=item.url;img.alt=item.title||"";img.loading="lazy";img.decoding="async";img.dataset.loading="1";
-    img.addEventListener("load",()=>delete img.dataset.loading,{once:true});
-    img.addEventListener("error",()=>delete img.dataset.loading,{once:true});
-    btn.appendChild(img);btn.addEventListener("click",()=>openViewer(index));frag.appendChild(btn)
-  });
-  els.gallery.appendChild(frag)
+async function resetAndLoad(force=false){
+  requestSerial++;
+  loadedItems=[];
+  nextCursor="";
+  hasMore=true;
+  loadingPage=false;
+  createColumns();
+  await loadNextPage(force)
 }
+function resetZoom(){
+  zoomed=false;
+  els.viewerImage.classList.remove("zoomed");
+  els.viewerImage.style.transform="translate3d(0,0,0) scale(1)";
+  els.viewerImage.style.transformOrigin="center center"
+}
+function toggleZoom(clientX=null,clientY=null){
+  if(!els.viewer.classList.contains("open"))return;
 
-function preloadAround(index){
-  if(!visibleItems.length)return;
-  [(index+1)%visibleItems.length,(index-1+visibleItems.length)%visibleItems.length].forEach(i=>{
-    const im=new Image();im.src=visibleItems[i].url
-  })
+  if(zoomed){
+    resetZoom();
+    return
+  }
+
+  zoomed=true;
+  els.viewerImage.classList.add("zoomed");
+
+  if(clientX!==null&&clientY!==null){
+    const rect=els.viewerImage.getBoundingClientRect();
+    if(rect.width&&rect.height){
+      const px=Math.max(0,Math.min(100,((clientX-rect.left)/rect.width)*100));
+      const py=Math.max(0,Math.min(100,((clientY-rect.top)/rect.height)*100));
+      els.viewerImage.style.transformOrigin=`${px}% ${py}%`
+    }
+  }
+
+  els.viewerImage.style.transform=`translate3d(0,0,0) scale(${ZOOM_SCALE})`
 }
 async function openViewer(index){
-  if(index<0||index>=visibleItems.length)return;
-  currentIndex=index;updateViewerImage();els.viewer.classList.add("open");
-  els.viewer.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";
-  if(TRY_DEVICE_FULLSCREEN&&document.documentElement.requestFullscreen&&!document.fullscreenElement){
+  if(index<0||index>=loadedItems.length)return;
+
+  currentIndex=index;
+  resetZoom();
+  updateViewerImage();
+
+  els.viewer.classList.add("open");
+  els.viewer.setAttribute("aria-hidden","false");
+  document.body.style.overflow="hidden";
+
+  if(
+    TRY_DEVICE_FULLSCREEN&&
+    coarsePointer()&&
+    document.documentElement.requestFullscreen&&
+    !document.fullscreenElement
+  ){
     try{await document.documentElement.requestFullscreen({navigationUI:"hide"})}catch{}
   }
 }
-function updateViewerImage(direction=0){
-  if(currentIndex<0||!visibleItems[currentIndex])return;
-  const item=visibleItems[currentIndex];
-  els.viewerImage.style.transition="none";
-  els.viewerImage.style.transform=direction?`translateX(${direction>0?20:-20}px)`:"translateX(0)";
-  els.viewerImage.style.opacity=".55";els.viewerImage.src=item.url;els.viewerImage.alt=item.title||"";
-  els.viewerCount.textContent=`${currentIndex+1} / ${visibleItems.length}`;
-  requestAnimationFrame(()=>{
-    els.viewerImage.style.transition="transform .16s ease, opacity .16s ease";
-    els.viewerImage.style.transform="translateX(0)";els.viewerImage.style.opacity="1"
-  });
-  preloadAround(currentIndex)
+function updateViewerImage(){
+  if(currentIndex<0||!loadedItems[currentIndex])return;
+
+  resetZoom();
+  const item=loadedItems[currentIndex];
+
+  els.viewerImage.style.opacity=".45";
+  els.viewerImage.src=item.url;
+  els.viewerImage.alt=item.title||"";
+  els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
+
+  requestAnimationFrame(()=>els.viewerImage.style.opacity="1");
+
+  if(hasMore&&currentIndex>=loadedItems.length-4){
+    loadNextPage()
+  }
 }
-function go(delta){
-  if(!visibleItems.length)return;
-  currentIndex=(currentIndex+delta+visibleItems.length)%visibleItems.length;updateViewerImage(delta)
+async function go(delta){
+  if(!loadedItems.length)return;
+
+  if(delta>0&&currentIndex===loadedItems.length-1&&hasMore){
+    const oldLength=loadedItems.length;
+    await loadNextPage();
+
+    if(loadedItems.length>oldLength){
+      currentIndex++;
+      updateViewerImage();
+      return
+    }
+  }
+
+  currentIndex=(currentIndex+delta+loadedItems.length)%loadedItems.length;
+  updateViewerImage()
 }
 async function closeViewer(){
-  els.viewer.classList.remove("open");els.viewer.setAttribute("aria-hidden","true");
-  document.body.style.overflow="";currentIndex=-1;
-  if(document.fullscreenElement){try{await document.exitFullscreen()}catch{}}
-}
-function onPointerDown(e){
-  if(!els.viewer.classList.contains("open"))return;
-  dragging=true;pointerStart={x:e.clientX,y:e.clientY};pointerLast={...pointerStart};
-  try{els.viewer.setPointerCapture(e.pointerId)}catch{}
-}
-function onPointerMove(e){
-  if(!dragging||!pointerStart)return;
-  pointerLast={x:e.clientX,y:e.clientY};
-  const dx=pointerLast.x-pointerStart.x,dy=pointerLast.y-pointerStart.y;
-  let tx=dx,ty=0;
-  if(Math.abs(dy)>Math.abs(dx)){tx=0;ty=Math.max(0,dy)}
-  els.viewerImage.style.transition="none";
-  els.viewerImage.style.transform=`translate3d(${tx}px,${ty}px,0)`;
-  if(ty>0)els.viewerImage.style.opacity=String(Math.max(.35,1-ty/420))
-}
-function resetPointer(){dragging=false;pointerStart=null;pointerLast=null}
-function resetImageTransform(){
-  els.viewerImage.style.transition="transform .15s ease, opacity .15s ease";
-  els.viewerImage.style.transform="translate3d(0,0,0)";els.viewerImage.style.opacity="1"
-}
-function onPointerUp(){
-  if(!dragging||!pointerStart||!pointerLast)return resetPointer();
-  const dx=pointerLast.x-pointerStart.x,dy=pointerLast.y-pointerStart.y;
-  const ax=Math.abs(dx),ay=Math.abs(dy);resetImageTransform();
-  if(dy>85&&ay>ax*1.15)closeViewer();
-  else if(ax>55&&ax>ay*1.1)go(dx<0?1:-1);
-  resetPointer()
+  els.viewer.classList.remove("open");
+  els.viewer.setAttribute("aria-hidden","true");
+  document.body.style.overflow="";
+  currentIndex=-1;
+  resetZoom();
+
+  if(document.fullscreenElement){
+    try{await document.exitFullscreen()}catch{}
+  }
 }
 
-els.investigator.addEventListener("change",()=>{updateAddressBar();loadGallery()});
-els.type.addEventListener("change",()=>{updateAddressBar();loadGallery()});
+/* PC: ダブルクリックでズーム */
+els.viewerImage.addEventListener("dblclick",e=>{
+  if(coarsePointer())return;
+  e.preventDefault();
+  e.stopPropagation();
+  toggleZoom(e.clientX,e.clientY)
+});
+
+/* 画像以外の何もない場所をクリックしても閉じる */
+els.viewer.addEventListener("click",e=>{
+  if(e.target===els.viewer||e.target===els.viewerStage){
+    closeViewer()
+  }
+});
+
+/* スマホだけ：左右スワイプ / 下スワイプ / ダブルタップ */
+els.viewer.addEventListener("touchstart",e=>{
+  if(!coarsePointer()||e.touches.length!==1)return;
+  const t=e.touches[0];
+
+  const now=Date.now();
+  const nearPreviousTap=Math.hypot(t.clientX-lastTapX,t.clientY-lastTapY)<45;
+
+  if(now-lastTapTime<320&&nearPreviousTap){
+    e.preventDefault();
+    toggleZoom(t.clientX,t.clientY);
+    lastTapTime=0;
+    touchDragging=false;
+    touchStart=null;
+    touchLast=null;
+    return
+  }
+
+  lastTapTime=now;
+  lastTapX=t.clientX;
+  lastTapY=t.clientY;
+
+  if(zoomed)return;
+
+  touchDragging=true;
+  touchStart={x:t.clientX,y:t.clientY};
+  touchLast={...touchStart}
+},{passive:false});
+
+els.viewer.addEventListener("touchmove",e=>{
+  if(!coarsePointer()||!touchDragging||!touchStart||zoomed||e.touches.length!==1)return;
+  e.preventDefault();
+
+  const t=e.touches[0];
+  touchLast={x:t.clientX,y:t.clientY};
+
+  const dx=touchLast.x-touchStart.x;
+  const dy=touchLast.y-touchStart.y;
+
+  let tx=dx,ty=0;
+
+  if(Math.abs(dy)>Math.abs(dx)){
+    tx=0;
+    ty=Math.max(0,dy)
+  }
+
+  els.viewerImage.style.transition="none";
+  els.viewerImage.style.transform=`translate3d(${tx}px,${ty}px,0) scale(1)`;
+
+  if(ty>0){
+    els.viewerImage.style.opacity=String(Math.max(.32,1-ty/380))
+  }
+},{passive:false});
+
+els.viewer.addEventListener("touchend",()=>{
+  if(!coarsePointer()||!touchDragging||!touchStart||!touchLast||zoomed){
+    touchDragging=false;
+    touchStart=null;
+    touchLast=null;
+    return
+  }
+
+  const dx=touchLast.x-touchStart.x;
+  const dy=touchLast.y-touchStart.y;
+  const ax=Math.abs(dx),ay=Math.abs(dy);
+
+  els.viewerImage.style.transition="transform .16s ease,opacity .16s ease";
+  els.viewerImage.style.transform="translate3d(0,0,0) scale(1)";
+  els.viewerImage.style.opacity="1";
+
+  if(dy>80&&ay>ax*1.12){
+    closeViewer()
+  }else if(ax>50&&ax>ay*1.08){
+    go(dx<0?1:-1)
+  }
+
+  touchDragging=false;
+  touchStart=null;
+  touchLast=null
+});
+
+els.menuButton.addEventListener("click",e=>{
+  e.stopPropagation();
+  setMenu(!els.menu.classList.contains("open"))
+});
+els.menu.addEventListener("click",e=>e.stopPropagation());
+document.addEventListener("click",()=>setMenu(false));
+
+els.investigator.addEventListener("change",()=>{
+  updateAddressBar();
+  resetAndLoad()
+});
+els.type.addEventListener("change",()=>{
+  updateAddressBar();
+  resetAndLoad()
+});
 els.clear.addEventListener("click",()=>{
-  els.investigator.value="";els.type.value="";updateAddressBar();loadGallery()
+  els.investigator.value="";
+  els.type.value="";
+  updateAddressBar();
+  resetAndLoad()
 });
 els.reload.addEventListener("click",async()=>{
-  await loadGallery(true);showToast("最新データに更新しました")
+  await Promise.all([loadMeta(true),resetAndLoad(true)]);
+  showToast("最新データに更新しました")
 });
 els.copy.addEventListener("click",async()=>{
-  await copyText(makeEmbedUrl());showToast("埋め込みURLをコピーしました")
+  await copyText(makeEmbedUrl());
+  showToast("埋め込みURLをコピーしました")
 });
-els.viewerClose.addEventListener("click",closeViewer);
-els.viewerPrev.addEventListener("click",()=>go(-1));
-els.viewerNext.addEventListener("click",()=>go(1));
-els.viewer.addEventListener("pointerdown",onPointerDown);
-els.viewer.addEventListener("pointermove",onPointerMove);
-els.viewer.addEventListener("pointerup",onPointerUp);
-els.viewer.addEventListener("pointercancel",()=>{resetImageTransform();resetPointer()});
+
+els.viewerClose.addEventListener("click",e=>{
+  e.stopPropagation();
+  closeViewer()
+});
+els.viewerPrev.addEventListener("click",e=>{
+  e.stopPropagation();
+  go(-1)
+});
+els.viewerNext.addEventListener("click",e=>{
+  e.stopPropagation();
+  go(1)
+});
+
 document.addEventListener("keydown",e=>{
   if(!els.viewer.classList.contains("open"))return;
   if(e.key==="ArrowRight")go(1);
   else if(e.key==="ArrowLeft")go(-1);
-  else if(e.key==="ArrowDown"||e.key==="Escape")closeViewer()
+  else if(e.key==="Escape")closeViewer()
+});
+
+/* 下に近づいたら次ページだけ取得 */
+const observer=new IntersectionObserver(entries=>{
+  if(entries.some(x=>x.isIntersecting)){
+    loadNextPage()
+  }
+},{root:null,rootMargin:"700px 0px",threshold:0});
+
+observer.observe(els.sentinel);
+
+let resizeTimer;
+window.addEventListener("resize",()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{
+    const wanted=desiredColumnCount();
+    if(columns.length&&columns.length!==wanted){
+      /* 既存画像の並びをガタつかせないため、列数変更時だけ一度再描画 */
+      const scrollY=window.scrollY;
+      createColumns();
+
+      document.querySelectorAll(".card").forEach(x=>x.remove());
+
+      loadedItems.forEach((item,index)=>{
+        preloadImage(item.url).then(loaded=>{
+          if(!loaded.ok)return;
+          const btn=document.createElement("button");
+          btn.className="card";
+          btn.type="button";
+          btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
+          loaded.img.alt=item.title||"";
+          loaded.img.draggable=false;
+          btn.appendChild(loaded.img);
+          btn.addEventListener("click",()=>openViewer(index));
+          shortestColumn().appendChild(btn)
+        })
+      });
+
+      requestAnimationFrame(()=>window.scrollTo(0,scrollY))
+    }
+  },180)
 });
 
 (async()=>{
-  /* URL指定値を先に入れる。embedではmetaを取らなくてもこの値で直接高速検索できます。 */
   const wantedInv=initialParams.get("investigator")||"";
   const wantedType=initialParams.get("type")||"";
-  if(wantedInv){const o=new Option("ɪɴᴠᴇꜱᴛɪɢᴀᴛᴏʀ：指定中",wantedInv);els.investigator.add(o);els.investigator.value=wantedInv}
-  if(wantedType){const o=new Option(`種別：${wantedType}`,wantedType);els.type.add(o);els.type.value=wantedType}
 
-  if(embedMode){
-    await loadGallery();
-  }else{
-    await Promise.all([loadMeta(),loadGallery()]);
+  if(wantedInv){
+    const o=new Option("指定中",wantedInv);
+    els.investigator.add(o);
+    els.investigator.value=wantedInv
   }
+  if(wantedType){
+    const o=new Option(wantedType,wantedType);
+    els.type.add(o);
+    els.type.value=wantedType
+  }
+
+  createColumns();
+
+  /* 画像を最優先。メニュー候補は裏で読み込む */
+  await loadNextPage();
+  loadMeta()
 })();
 </script>
 </body>
