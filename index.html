@@ -665,22 +665,67 @@ async function appendBatch(items,startIndex,serial,firstPage){
     appendItem(item,startIndex+i,serial,firstPage&&i<6?"high":"auto")
   ))
 }
+const META_STORAGE_KEY="notion-image-gallery-meta-v1";
+
+function readStoredMeta(){
+  try{
+    const raw=localStorage.getItem(META_STORAGE_KEY);
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    return parsed&&Array.isArray(parsed.investigators)&&Array.isArray(parsed.types)
+      ? parsed
+      : null
+  }catch{
+    return null
+  }
+}
+function storeMeta(data){
+  try{
+    localStorage.setItem(
+      META_STORAGE_KEY,
+      JSON.stringify({
+        investigators:Array.isArray(data?.investigators)?data.investigators:[],
+        types:Array.isArray(data?.types)?data.types:[]
+      })
+    )
+  }catch{}
+}
+function applyMeta(data){
+  const wantedInv=els.investigator.value||initialParams.get("investigator")||"";
+  const wantedType=els.type.value||initialParams.get("type")||"";
+
+  fillSelect(
+    els.investigator,
+    (data.investigators||[]).map(x=>({value:x.id,label:x.name||x.id})),
+    wantedInv
+  );
+  fillSelect(
+    els.type,
+    (data.types||[]).map(x=>({value:x,label:x})),
+    wantedType
+  )
+}
+
 async function loadMeta(force=false){
+  /* 前回取得分があればまず即表示。Notion/API待ちでリストを空にしない。 */
+  if(!force){
+    const stored=readStoredMeta();
+    if(stored)applyMeta(stored)
+  }
+
   try{
     const data=await apiGet("/meta",{},force);
-    const wantedInv=els.investigator.value||initialParams.get("investigator")||"";
-    const wantedType=els.type.value||initialParams.get("type")||"";
 
-    fillSelect(
-      els.investigator,
-      (data.investigators||[]).map(x=>({value:x.id,label:x.name||x.id})),
-      wantedInv
-    );
-    fillSelect(
-      els.type,
-      (data.types||[]).map(x=>({value:x,label:x})),
-      wantedType
-    );
+    /* 空レスポンスで正常だった前回候補を消さない */
+    if(
+      Array.isArray(data.investigators) &&
+      data.investigators.length
+    ){
+      applyMeta(data);
+      storeMeta(data)
+    }else{
+      console.warn("Meta returned no investigators:",data)
+    }
 
     if(data.warnings?.length)console.warn("Meta warnings:",data.warnings)
   }catch(err){
@@ -1146,9 +1191,10 @@ window.addEventListener("resize",()=>{
 
   createColumns();
 
-  /* 画像最優先。メニュー候補は後ろで取得 */
-  await loadNextPage();
-  loadMeta()
+  /* INVESTIGATOR候補と画像を同時に開始。
+     メニュー候補が画像18枚の読込完了を待たない。 */
+  loadMeta();
+  await loadNextPage()
 })();
 </script>
 </body>
