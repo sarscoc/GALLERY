@@ -810,18 +810,27 @@ function preloadImage(src,priority="auto"){
     const img=new Image();
     img.decoding="async";
     img.fetchPriority=priority;
-    img.onload=()=>resolve({ok:true,img});
-    img.onerror=()=>resolve({ok:false,img});
+    img.onload=()=>resolve({ok:true,img,src});
+    img.onerror=()=>resolve({ok:false,img,src});
     img.src=src
   })
 }
+async function preloadImageCandidates(candidates,priority="auto"){
+  const unique=[...new Set((candidates||[]).filter(Boolean))];
+  for(const src of unique){
+    const loaded=await preloadImage(src,priority);
+    if(loaded.ok)return loaded
+  }
+  return {ok:false,img:null,src:""}
+}
 async function appendItem(item,index,serial,priority="auto"){
-  const src=item.thumbUrl||item.url||item.originalUrl;
+  const candidates=[item.thumbUrl,item.url,item.originalUrl];
+  const src=candidates.find(Boolean)||"";
   const key=retainedThumbKey(item,src);
   let retained=retainedThumbs.get(key)||null;
 
   if(!retained){
-    const loaded=await preloadImage(src,priority);
+    const loaded=await preloadImageCandidates(candidates,priority);
     if(serial!==requestSerial||!loaded.ok)return;
     retained=makeRetainedThumbnail(loaded.img,item);
     retainedThumbs.set(key,retained)
@@ -1151,6 +1160,11 @@ function viewerSource(item){
 function originalSource(item){
   return item?.originalUrl||item?.url||item?.previewUrl||""
 }
+function setViewerSourceWithFallback(primary,fallback=""){
+  const first=primary||fallback||"";
+  els.viewerImage.dataset.fallbackSrc=(fallback&&fallback!==first)?fallback:"";
+  if(first&&els.viewerImage.src!==first)els.viewerImage.src=first
+}
 function clampZoom(value){
   return Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,value))
 }
@@ -1158,6 +1172,7 @@ function ensureOriginalImage(){
   const item=loadedItems[currentIndex];
   if(!item)return;
   const original=originalSource(item);
+  els.viewerImage.dataset.fallbackSrc="";
   if(original&&els.viewerImage.src!==original){
     els.viewerImage.src=original
   }
@@ -1188,8 +1203,11 @@ function resetZoom(restorePreview=false){
     currentIndex>=0 &&
     loadedItems[currentIndex]
   ){
-    const src=viewerSource(loadedItems[currentIndex]);
-    if(src&&els.viewerImage.src!==src)els.viewerImage.src=src
+    const item=loadedItems[currentIndex];
+    setViewerSourceWithFallback(
+      viewerSource(item),
+      originalSource(item)
+    )
   }
 }
 function setZoomScale(nextScale,clientX=null,clientY=null){
@@ -1270,9 +1288,12 @@ function updateViewerImage(){
   clearViewerTags();
 
   els.viewerImage.style.opacity=".45";
-  els.viewerImage.src=document.fullscreenElement
-    ? originalSource(item)
-    : viewerSource(item);
+  setViewerSourceWithFallback(
+    document.fullscreenElement
+      ? originalSource(item)
+      : viewerSource(item),
+    originalSource(item)
+  );
   els.viewerImage.alt=item.title||"";
   els.viewerCount.textContent=`${currentIndex+1} / ${loadedItems.length}${hasMore?" +":""}`;
 
@@ -1316,6 +1337,13 @@ async function closeViewer(){
     try{await document.exitFullscreen()}catch{}
   }
 }
+
+els.viewerImage.addEventListener("error",()=>{
+  const fallback=els.viewerImage.dataset.fallbackSrc||"";
+  if(!fallback)return;
+  els.viewerImage.dataset.fallbackSrc="";
+  els.viewerImage.src=fallback
+});
 
 /* Desktop: buttons / keyboard / double-click zoom */
 els.viewerImage.addEventListener("dblclick",async e=>{
