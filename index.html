@@ -58,7 +58,8 @@ button{cursor:pointer}
     filter .18s ease;
   transform-origin:center center;
 }
-.card img{
+.card img,
+.card canvas{
   display:block;
   width:100%;
   height:auto;
@@ -599,6 +600,8 @@ body.viewer-active .menu{
 <script>
 const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
 const PAGE_SIZE = 12;
+const RETAINED_THUMB_WIDTH = 420;
+const RETAINED_THUMB_MAX_PIXELS = 320000;
 const ZOOM_SCALE = 2.5;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 12;
@@ -633,6 +636,10 @@ const els = {
 };
 
 let columns=[];
+/* Once a thumbnail has actually been seen, keep a lightweight pixel snapshot
+   for the rest of this page session. This prevents signed/original URLs or
+   browser image eviction from leaving blank cards when scrolling back. */
+const retainedThumbs=new Map();
 let loadedItems=[];
 let nextCursor="";
 let hasMore=true;
@@ -754,6 +761,50 @@ function shortestColumn(){
   }
   return best
 }
+function retainedThumbKey(item,src){
+  return String(item?.baseKey||item?.id||src||"")
+}
+function makeRetainedThumbnail(img,item){
+  const naturalW=Math.max(1,img.naturalWidth||img.width||1);
+  const naturalH=Math.max(1,img.naturalHeight||img.height||1);
+  const pixelScale=Math.sqrt(
+    RETAINED_THUMB_MAX_PIXELS/(naturalW*naturalH)
+  );
+  const scale=Math.min(
+    1,
+    RETAINED_THUMB_WIDTH/naturalW,
+    Number.isFinite(pixelScale)?pixelScale:1
+  );
+  const w=Math.max(1,Math.round(naturalW*scale));
+  const h=Math.max(1,Math.round(naturalH*scale));
+
+  const canvas=document.createElement("canvas");
+  canvas.width=w;
+  canvas.height=h;
+  canvas.setAttribute("role","img");
+  canvas.setAttribute("aria-label",item?.title||"");
+
+  const ctx=canvas.getContext("2d",{alpha:true});
+  if(ctx){
+    ctx.imageSmoothingEnabled=true;
+    ctx.imageSmoothingQuality="medium";
+    ctx.drawImage(img,0,0,w,h)
+  }
+  return canvas
+}
+function cloneRetainedThumbnail(master,item){
+  if(!master?.isConnected)return master;
+  if(!(master instanceof HTMLCanvasElement))return master.cloneNode(true);
+
+  const canvas=document.createElement("canvas");
+  canvas.width=master.width;
+  canvas.height=master.height;
+  canvas.setAttribute("role","img");
+  canvas.setAttribute("aria-label",item?.title||"");
+  const ctx=canvas.getContext("2d",{alpha:true});
+  if(ctx)ctx.drawImage(master,0,0);
+  return canvas
+}
 function preloadImage(src,priority="auto"){
   return new Promise(resolve=>{
     const img=new Image();
@@ -766,19 +817,25 @@ function preloadImage(src,priority="auto"){
 }
 async function appendItem(item,index,serial,priority="auto"){
   const src=item.thumbUrl||item.url||item.originalUrl;
-  const loaded=await preloadImage(src,priority);
-  if(serial!==requestSerial||!loaded.ok)return;
+  const key=retainedThumbKey(item,src);
+  let retained=retainedThumbs.get(key)||null;
+
+  if(!retained){
+    const loaded=await preloadImage(src,priority);
+    if(serial!==requestSerial||!loaded.ok)return;
+    retained=makeRetainedThumbnail(loaded.img,item);
+    retainedThumbs.set(key,retained)
+  }
+
+  if(serial!==requestSerial)return;
 
   const btn=document.createElement("button");
   btn.className="card";
   btn.type="button";
   btn.setAttribute("aria-label",item.title||`画像 ${index+1}`);
 
-  const img=loaded.img;
-  img.alt=item.title||"";
-  img.draggable=false;
-
-  btn.appendChild(img);
+  const visual=cloneRetainedThumbnail(retained,item);
+  btn.appendChild(visual);
   btn.addEventListener("click",()=>openViewer(index));
   shortestColumn().appendChild(btn)
 }
@@ -808,11 +865,18 @@ async function appendBatch(items,startIndex,serial,firstPage){
   )
 }
 const META_STORAGE_KEY="notion-image-gallery-meta-v1";
-const PAGE_CACHE_PREFIX="notion-image-gallery-page-v2:";
+const PAGE_CACHE_PREFIX="notion-image-gallery-page-v3:";
 const PAGE_CACHE_TTL_MS=5*60*1000;
 
 function firstPageCacheKey(investigator,type){
   return PAGE_CACHE_PREFIX+encodeURIComponent(investigator||"")+":"+encodeURIComponent(type||"")
+}
+function firstPageCacheIsStable(data){
+  const items=Array.isArray(data?.items)?data.items:[];
+  return items.every(item=>{
+    const src=String(item?.thumbUrl||item?.url||"");
+    return src.includes("/media/thumb/")
+  })
 }
 function readStoredFirstPage(investigator,type){
   try{
@@ -823,12 +887,18 @@ function readStoredFirstPage(investigator,type){
       localStorage.removeItem(firstPageCacheKey(investigator,type));
       return null
     }
-    return parsed.data||null
+    const data=parsed.data||null;
+    if(!firstPageCacheIsStable(data)){
+      localStorage.removeItem(firstPageCacheKey(investigator,type));
+      return null
+    }
+    return data
   }catch{
     return null
   }
 }
 function storeFirstPage(investigator,type,data){
+  if(!firstPageCacheIsStable(data))return;
   try{
     localStorage.setItem(
       firstPageCacheKey(investigator,type),
