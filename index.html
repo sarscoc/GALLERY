@@ -598,7 +598,7 @@ body.viewer-active .menu{
 
 <script>
 const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
-const PAGE_SIZE = 18;
+const PAGE_SIZE = 12;
 const ZOOM_SCALE = 2.5;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 12;
@@ -783,11 +783,59 @@ async function appendItem(item,index,serial,priority="auto"){
   shortestColumn().appendChild(btn)
 }
 async function appendBatch(items,startIndex,serial,firstPage){
-  await Promise.all(items.map((item,i)=>
-    appendItem(item,startIndex+i,serial,firstPage&&i<6?"high":"auto")
-  ))
+  if(!items.length)return;
+
+  const concurrency=Math.min(
+    items.length,
+    firstPage?Math.max(4,Math.min(6,columns.length)):4
+  );
+  let next=0;
+
+  async function runner(){
+    while(next<items.length){
+      const i=next++;
+      await appendItem(
+        items[i],
+        startIndex+i,
+        serial,
+        firstPage&&i<concurrency?"high":"low"
+      )
+    }
+  }
+
+  await Promise.all(
+    Array.from({length:concurrency},()=>runner())
+  )
 }
 const META_STORAGE_KEY="notion-image-gallery-meta-v1";
+const PAGE_CACHE_PREFIX="notion-image-gallery-page-v2:";
+const PAGE_CACHE_TTL_MS=5*60*1000;
+
+function firstPageCacheKey(investigator,type){
+  return PAGE_CACHE_PREFIX+encodeURIComponent(investigator||"")+":"+encodeURIComponent(type||"")
+}
+function readStoredFirstPage(investigator,type){
+  try{
+    const raw=localStorage.getItem(firstPageCacheKey(investigator,type));
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    if(!parsed?.savedAt||Date.now()-parsed.savedAt>PAGE_CACHE_TTL_MS){
+      localStorage.removeItem(firstPageCacheKey(investigator,type));
+      return null
+    }
+    return parsed.data||null
+  }catch{
+    return null
+  }
+}
+function storeFirstPage(investigator,type,data){
+  try{
+    localStorage.setItem(
+      firstPageCacheKey(investigator,type),
+      JSON.stringify({savedAt:Date.now(),data})
+    )
+  }catch{}
+}
 
 function readStoredMeta(){
   try{
@@ -870,12 +918,20 @@ async function loadNextPage(force=false){
 
   try{
     const {investigator,type}=currentFilters();
-    const data=await apiGet("/gallery-page",{
+    const cachedPage=firstPage&&!force
+      ? readStoredFirstPage(investigator,type)
+      : null;
+
+    const data=cachedPage||await apiGet("/gallery-page",{
       investigator,
       type,
       cursor:nextCursor,
       page_size:PAGE_SIZE
     },force);
+
+    if(firstPage&&!cachedPage){
+      storeFirstPage(investigator,type,data)
+    }
 
     if(serial!==requestSerial)return;
 
@@ -1548,7 +1604,7 @@ document.addEventListener("keydown",e=>{
 /* 下に近づいたら次ページ */
 const observer=new IntersectionObserver(entries=>{
   if(entries.some(x=>x.isIntersecting))loadNextPage()
-},{root:null,rootMargin:"700px 0px",threshold:0});
+},{root:null,rootMargin:"200px 0px",threshold:0});
 observer.observe(els.sentinel);
 
 window.addEventListener(
@@ -1591,10 +1647,17 @@ window.addEventListener("resize",()=>{
 
   createColumns();
 
-  /* INVESTIGATOR候補と画像を同時に開始。
-     メニュー候補が画像18枚の読込完了を待たない。 */
-  loadMeta();
-  await loadNextPage()
+  /* 前回の候補は即表示し、ネットワークのmeta取得は画像の後に回す。 */
+  const storedMeta=readStoredMeta();
+  if(storedMeta)applyMeta(storedMeta);
+
+  await loadNextPage();
+
+  if("requestIdleCallback" in window){
+    requestIdleCallback(()=>loadMeta(),{timeout:1500})
+  }else{
+    setTimeout(()=>loadMeta(),500)
+  }
 })();
 </script>
 </body>
