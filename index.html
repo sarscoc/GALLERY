@@ -600,6 +600,7 @@ body.viewer-active .menu{
 <script>
 const WORKER_URL = "https://notion-image-gallery.sarscoc.workers.dev/";
 const PAGE_SIZE = 12;
+const LOAD_AHEAD_PX = 500;
 const RETAINED_THUMB_WIDTH = 420;
 const RETAINED_THUMB_MAX_PIXELS = 320000;
 const ZOOM_SCALE = 2.5;
@@ -874,7 +875,7 @@ async function appendBatch(items,startIndex,serial,firstPage){
   )
 }
 const META_STORAGE_KEY="notion-image-gallery-meta-v1";
-const PAGE_CACHE_PREFIX="notion-image-gallery-page-v3:";
+const PAGE_CACHE_PREFIX="notion-image-gallery-page-v4:";
 const PAGE_CACHE_TTL_MS=5*60*1000;
 
 function firstPageCacheKey(investigator,type){
@@ -984,6 +985,7 @@ async function loadMeta(force=false){
 async function loadNextPage(force=false){
   if(loadingPage||!hasMore)return;
   loadingPage=true;
+  let pageSucceeded=false;
 
   const serial=requestSerial;
   const firstPage=loadedItems.length===0;
@@ -1026,6 +1028,7 @@ async function loadNextPage(force=false){
     if(!loadedItems.length&&!hasMore){
       els.gallery.innerHTML='<div class="empty">該当する画像がありません。</div>'
     }
+    pageSucceeded=true;
   }catch(err){
     console.error(err);
     if(firstPage){
@@ -1039,7 +1042,13 @@ async function loadNextPage(force=false){
   }finally{
     if(firstPage)els.status.hidden=true;
     loadingPage=false;
-    els.loadMoreStatus.classList.add("hidden")
+    els.loadMoreStatus.classList.add("hidden");
+
+    /* IntersectionObserver can miss the next edge while a page is loading.
+       Re-check after every successful page so pagination never silently stops. */
+    if(pageSucceeded&&hasMore){
+      requestAnimationFrame(scheduleLoadMoreCheck)
+    }
   }
 }
 async function resetAndLoad(force=false){
@@ -1699,11 +1708,29 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="Escape")closeViewer()
 });
 
-/* 下に近づいたら次ページ */
+/* 下に近づいたら次ページ。
+   Observerだけに任せると、読み込み中にsentinelが交差したままになった時
+   次の通知を取りこぼすため、scroll + 読み込み完了後の再判定も併用する。 */
+let loadMoreCheckQueued=false;
+function scheduleLoadMoreCheck(){
+  if(loadMoreCheckQueued)return;
+  loadMoreCheckQueued=true;
+
+  requestAnimationFrame(()=>{
+    loadMoreCheckQueued=false;
+    if(loadingPage||!hasMore)return;
+
+    const rect=els.sentinel.getBoundingClientRect();
+    if(rect.top<=window.innerHeight+LOAD_AHEAD_PX){
+      loadNextPage()
+    }
+  })
+}
 const observer=new IntersectionObserver(entries=>{
-  if(entries.some(x=>x.isIntersecting))loadNextPage()
-},{root:null,rootMargin:"200px 0px",threshold:0});
+  if(entries.some(x=>x.isIntersecting))scheduleLoadMoreCheck()
+},{root:null,rootMargin:`${LOAD_AHEAD_PX}px 0px`,threshold:0});
 observer.observe(els.sentinel);
+window.addEventListener("scroll",scheduleLoadMoreCheck,{passive:true});
 
 window.addEventListener(
   "orientationchange",
