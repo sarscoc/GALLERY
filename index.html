@@ -887,7 +887,7 @@ async function appendBatch(items,startIndex,serial,firstPage){
   )
 }
 const META_STORAGE_KEY="notion-image-gallery-meta-v1";
-const PAGE_CACHE_PREFIX="notion-image-gallery-page-v4:";
+const PAGE_CACHE_PREFIX="notion-image-gallery-page-v5:";
 const PAGE_CACHE_TTL_MS=5*60*1000;
 
 function firstPageCacheKey(investigator,type){
@@ -1233,6 +1233,13 @@ function setViewerSourceProgressive(item){
 
   els.viewerImage.alt=item.title||"";
   els.viewerImage.dataset.fallbackSrc="";
+
+  /* Once the R2 original is already on screen, never downgrade it back to
+     the 420px thumbnail when zoom/fullscreen logic asks for the source again. */
+  if(highSrc&&els.viewerImage.src===highSrc){
+    els.viewerImage.style.opacity="1";
+    return
+  }
 
   if(lowSrc&&els.viewerImage.src!==lowSrc){
     els.viewerImage.src=lowSrc
