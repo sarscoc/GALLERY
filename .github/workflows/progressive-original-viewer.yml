@@ -1,0 +1,24 @@
+name: Progressive original viewer patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/progressive-original-viewer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/patch_progressive_original.py
+      - run: git diff --check
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Show thumbnails instantly before R2 originals"
+          git push
