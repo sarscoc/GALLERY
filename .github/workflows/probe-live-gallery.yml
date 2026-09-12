@@ -1,0 +1,53 @@
+name: Probe live gallery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-live-gallery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe live Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://notion-image-gallery.sarscoc.workers.dev'
+          echo '=== HEALTH ==='
+          curl -fsS "$BASE/health" | jq .
+
+          echo '=== BEFORE ==='
+          curl -fsS -D /tmp/before.h "$BASE/gallery-page?page_size=100" -o /tmp/before.json
+          grep -i '^x-gallery-snapshot:' /tmp/before.h || true
+          jq '{snapshotBuiltAt,total,hasMore,nextCursor,first5:[.items[:5][]|{id,title,fileName,baseKey}]}' /tmp/before.json
+
+          echo '=== FORCE REFRESH ==='
+          curl -fsS -D /tmp/refresh.h "$BASE/gallery-page?page_size=100&refresh=1" -o /tmp/refresh.json
+          grep -i '^x-gallery-snapshot:' /tmp/refresh.h || true
+          jq '{snapshotBuiltAt,total,hasMore,nextCursor,first5:[.items[:5][]|{id,title,fileName,baseKey}]}' /tmp/refresh.json
+
+          echo '=== AFTER ==='
+          curl -fsS -D /tmp/after.h "$BASE/gallery-page?page_size=100" -o /tmp/after.json
+          grep -i '^x-gallery-snapshot:' /tmp/after.h || true
+          jq '{snapshotBuiltAt,total,hasMore,nextCursor,first5:[.items[:5][]|{id,title,fileName,baseKey}]}' /tmp/after.json
+
+          echo '=== COMPARISON ==='
+          python - <<'PY'
+          import json
+          b=json.load(open('/tmp/before.json'))
+          r=json.load(open('/tmp/refresh.json'))
+          a=json.load(open('/tmp/after.json'))
+          def ids(x): return [i.get('id') for i in x.get('items',[])]
+          print('before builtAt:', b.get('snapshotBuiltAt'), 'total:', b.get('total'))
+          print('refresh builtAt:', r.get('snapshotBuiltAt'), 'total:', r.get('total'))
+          print('after builtAt:', a.get('snapshotBuiltAt'), 'total:', a.get('total'))
+          print('refresh_changed_snapshot:', b.get('snapshotBuiltAt') != r.get('snapshotBuiltAt'))
+          print('after_matches_refresh_snapshot:', a.get('snapshotBuiltAt') == r.get('snapshotBuiltAt'))
+          print('ids_changed_before_to_refresh:', ids(b) != ids(r))
+          print('ids_match_refresh_to_after:', ids(r) == ids(a))
+          PY
