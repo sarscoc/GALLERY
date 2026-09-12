@@ -1736,7 +1736,11 @@ els.clear.addEventListener("click",()=>{
   resetAndLoad()
 });
 els.reload.addEventListener("click",async()=>{
-  await Promise.all([loadMeta(true),resetAndLoad(true)]);
+  /* Rebuild the persistent gallery snapshot exactly once.
+     Then read metadata from that freshly written R2 snapshot instead of
+     triggering a second forced Notion rebuild in parallel. */
+  await resetAndLoad(true);
+  await loadMeta(false);
   showToast("最新データに更新しました")
 });
 els.copy.addEventListener("click",async()=>{
